@@ -8,6 +8,11 @@ const PORT = process.env.PORT || 3000;
 // Servir arquivos estáticos da raiz do projeto
 app.use(express.static(path.join(__dirname)));
 
+// Rota principal (IMPORTANTE)
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
 // Iniciar servidor
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
