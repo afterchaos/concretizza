@@ -44,11 +44,40 @@ let excluindoEmMassa = false
 
 // ===== INICIALIZAÇÃO =====
 document.addEventListener("DOMContentLoaded", () => {
+  verificarAutenticacao()
+  carregarDadosUsuario()
   carregarDados()
   configurarEventos()
   atualizarTabela()
   atualizarEstatisticas()
 })
+
+function verificarAutenticacao() {
+  const usuarioLogado = JSON.parse(localStorage.getItem("usuarioLogado"))
+  if (!usuarioLogado) {
+    window.location.href = "index.html"
+    return
+  }
+}
+
+function carregarDadosUsuario() {
+  const usuarioLogado = JSON.parse(localStorage.getItem("usuarioLogado"))
+  if (usuarioLogado) {
+    const userNameElement = document.getElementById("userName")
+
+    if (userNameElement) {
+      userNameElement.textContent = usuarioLogado.nome || usuarioLogado.username
+    }
+
+    // Mostrar seção admin se for admin
+    if (usuarioLogado.role === "Admin") {
+      const adminSection = document.getElementById("adminSection")
+      if (adminSection) {
+        adminSection.style.display = "block"
+      }
+    }
+  }
+}
 
 function configurarEventos() {
   // Sidebar toggle
@@ -170,7 +199,7 @@ function configurarEventos() {
   document.getElementById("logoutBtn")?.addEventListener("click", (e) => {
     e.preventDefault()
     if (confirm("Deseja realmente sair?")) {
-      window.location.href = "login.html"
+      window.location.href = "index.html"
     }
   })
 

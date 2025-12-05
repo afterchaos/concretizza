@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Concretizza - Área de Clientes</title>
+    <title>Concretizza - Usuários e Permissões</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styleClientes.css">
+    <link rel="stylesheet" href="styleUsuarios.css">
 </head>
 <body class="app-page">
     <aside class="sidebar">
@@ -27,26 +27,24 @@
                 <i class="fas fa-chart-line"></i>
                 <span>Dashboard</span>
             </a>
-            <a href="clientes.html" class="nav-item active">
+            <a href="clientes.html" class="nav-item">
                 <i class="fas fa-users"></i>
                 <span>Clientes</span>
             </a>
-            <a href="#agendamentos" class="nav-item">
+            <a href="dashboard.html#agendamentos" class="nav-item">
                 <i class="fas fa-calendar"></i>
                 <span>Agendamentos</span>
             </a>
-
-            <!-- Adicionando seção de administração que só aparece para usuários admin -->
-            <div id="adminSection" class="admin-section" style="display: none;">
+            <div class="admin-section">
+                <div class="nav-divider"></div>
                 <p class="nav-label">Administração</p>
-                <a href="usuarios.html" class="nav-item" data-page="usuarios">
+                <a href="usuarios.html" class="nav-item active">
                     <i class="fas fa-user-tie"></i>
                     <span>Gerenciar Usuários</span>
                 </a>
             </div>
-
             <div class="nav-divider"></div>
-            <a href="index.html" class="nav-item" id="logoutBtn">
+            <a href="#" class="nav-item" id="logoutBtn">
                 <i class="fas fa-sign-out-alt"></i>
                 <span>Sair</span>
             </a>
@@ -59,7 +57,7 @@
                 <button class="sidebar-toggle" id="sidebarToggleMobile">
                     <i class="fas fa-bars"></i>
                 </button>
-                <h1>Clientes</h1>
+                <h1>Usuários e Permissões</h1>
             </div>
             <div class="header-right">
                 <div class="user-info">
@@ -74,71 +72,67 @@
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-icon">
-                        <i class="fas fa-users"></i>
+                        <i class="fas fa-users-cog"></i>
                     </div>
                     <div class="stat-info">
-                        <h3 id="totalClientes">0</h3>
-                        <p>Total de Clientes</p>
+                        <h3 id="totalUsuarios">0</h3>
+                        <p>Total de Usuários</p>
                     </div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-icon">
-                        <i class="fas fa-star"></i>
+                        <i class="fas fa-user-shield"></i>
                     </div>
                     <div class="stat-info">
-                        <h3 id="clientesNovos">0</h3>
-                        <p>Novos</p>
+                        <h3 id="totalAdmins">0</h3>
+                        <p>Administradores</p>
                     </div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-icon">
-                        <i class="fas fa-fire"></i>
+                        <i class="fas fa-user-edit"></i>
                     </div>
                     <div class="stat-info">
-                        <h3 id="clientesQuentes">0</h3>
-                        <p>Quentes</p>
+                        <h3 id="totalEditores">0</h3>
+                        <p>Editores</p>
                     </div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-icon">
-                        <i class="fas fa-snowflake"></i>
+                        <i class="fas fa-user-check"></i>
                     </div>
                     <div class="stat-info">
-                        <h3 id="clientesFrios">0</h3>
-                        <p>Frios</p>
+                        <h3 id="usuariosAtivos">0</h3>
+                        <p>Ativos</p>
                     </div>
                 </div>
             </div>
 
             <div class="content-card">
                 <div class="card-header-section">
-                    <h2>Gerenciar Clientes</h2>
-                    <button class="btn-primary" id="btnNovoCliente">
-                        <i class="fas fa-plus"></i> Novo Cliente
+                    <h2>Gerenciar Usuários</h2>
+                    <button class="btn-primary" id="btnNovoUsuario">
+                        <i class="fas fa-user-plus"></i> Novo Usuário
                     </button>
                 </div>
 
                 <div class="filter-bar">
-                    <input type="text" id="searchClientes" placeholder="Buscar por nome, telefone ou email..." class="search-input">
+                    <input type="text" id="searchUsuarios" placeholder="Buscar por nome ou email..." class="search-input">
+                    <select id="filterPermissao" class="select-input">
+                        <option value="">Todas as permissões</option>
+                        <option value="admin">Administrador</option>
+                        <option value="editor">Editor</option>
+                        <option value="visualizador">Visualizador</option>
+                    </select>
                     <select id="filterStatus" class="select-input">
                         <option value="">Todos os status</option>
-                        <option value="novo">Novo</option>
-                        <option value="quente">Quente</option>
-                        <option value="frio">Frio</option>
-                        <option value="em-atendimento">Em Atendimento</option>
-                        <option value="finalizado">Finalizado</option>
-                    </select>
-                    <select id="filterInteresse" class="select-input">
-                        <option value="">Todos os interesses</option>
-                        <option value="alugar">Alugar</option>
-                        <option value="comprar">Comprar</option>
-                        <option value="vender">Vender</option>
+                        <option value="ativo">Ativo</option>
+                        <option value="inativo">Inativo</option>
                     </select>
                 </div>
 
-                <!-- Added bulk delete button that appears when clients are selected -->
                 <div class="bulk-actions" id="bulkActions" style="display: none;">
-                    <span id="selectedCount">0 cliente(s) selecionado(s)</span>
+                    <span id="selectedCount">0 usuário(s) selecionado(s)</span>
                     <button class="btn-danger" id="btnExcluirSelecionados">
                         <i class="fas fa-trash"></i> Excluir Selecionados
                     </button>
@@ -148,22 +142,20 @@
                     <table class="table">
                         <thead>
                             <tr>
-                                <!-- Added checkbox column to select all clients -->
                                 <th style="width: 50px;">
                                     <input type="checkbox" id="selectAll" class="checkbox-input">
                                 </th>
                                 <th>Nome</th>
-                                <th>Telefone</th>
-                                <th>Interesse</th>
-                                <th>Status</th>
                                 <th>Email</th>
-                                <th>Data</th>
+                                <th>Permissão</th>
+                                <th>Status</th>
+                                <th>Último Acesso</th>
                                 <th>Ações</th>
                             </tr>
                         </thead>
-                        <tbody id="clientesTable">
+                        <tbody id="usuariosTable">
                             <tr>
-                                <td colspan="8" class="text-center">Nenhum cliente encontrado</td>
+                                <td colspan="7" class="text-center">Nenhum usuário encontrado</td>
                             </tr>
                         </tbody>
                     </table>
@@ -182,78 +174,84 @@
         </div>
     </main>
 
-    <div id="modalCliente" class="modal">
+    <div id="modalUsuario" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 id="modalTitle">Novo Cliente</h2>
+                <h2 id="modalTitle">Novo Usuário</h2>
                 <button class="modal-close" id="closeModal">&times;</button>
             </div>
             <div class="modal-body">
-                <form id="formCliente" class="form">
+                <form id="formUsuario" class="form">
                     <div class="form-group">
-                        <label for="clienteNome">Nome Completo *</label>
-                        <input type="text" id="clienteNome" required>
+                        <label for="usuarioNome">Nome Completo *</label>
+                        <input type="text" id="usuarioNome" required>
                     </div>
                     <div class="form-group">
-                        <label for="clienteTelefone">Telefone *</label>
-                        <input type="tel" id="clienteTelefone" placeholder="(00) 00000-0000" required>
+                        <label for="usuarioEmail">Email *</label>
+                        <input type="email" id="usuarioEmail" placeholder="usuario@email.com" required>
                     </div>
                     <div class="form-group">
-                        <label for="clienteEmail">Email</label>
-                        <input type="email" id="clienteEmail" placeholder="email@exemplo.com">
+                        <label for="usuarioSenha">Senha *</label>
+                        <input type="password" id="usuarioSenha" placeholder="Mínimo 6 caracteres" required>
                     </div>
                     <div class="form-group">
-                        <label for="clienteInteresse">Tipo de Interesse *</label>
-                        <select id="clienteInteresse" required>
+                        <label for="usuarioPermissao">Nível de Permissão *</label>
+                        <select id="usuarioPermissao" required>
                             <option value="">Selecione</option>
-                            <option value="alugar">Alugar</option>
-                            <option value="comprar">Comprar</option>
-                            <option value="vender">Vender</option>
+                            <option value="admin">Administrador - Acesso total</option>
+                            <option value="editor">Editor - Criar e editar</option>
+                            <option value="visualizador">Visualizador - Apenas visualizar</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="clienteValor">Valor Aproximado (R$)</label>
-                        <input type="text" id="clienteValor" placeholder="0,00">
-                    </div>
-                    <div class="form-group">
-                        <label for="clienteStatus">Status *</label>
-                        <select id="clienteStatus" required>
-                            <option value="novo">Novo</option>
-                            <option value="em-atendimento">Em Atendimento</option>
-                            <option value="quente">Quente</option>
-                            <option value="frio">Frio</option>
-                            <option value="finalizado">Finalizado</option>
+                        <label for="usuarioStatus">Status *</label>
+                        <select id="usuarioStatus" required>
+                            <option value="ativo">Ativo</option>
+                            <option value="inativo">Inativo</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="clienteObservacoes">Observações</label>
-                        <textarea id="clienteObservacoes" rows="4" placeholder="Adicione informações relevantes sobre o cliente..."></textarea>
+                        <label for="usuarioTelefone">Telefone</label>
+                        <input type="tel" id="usuarioTelefone" placeholder="(00) 00000-0000">
+                    </div>
+                    <div class="form-group">
+                        <label for="usuarioDepartamento">Departamento</label>
+                        <input type="text" id="usuarioDepartamento" placeholder="Ex: Vendas, Atendimento">
                     </div>
                     <div class="form-actions">
                         <button type="button" class="btn-secondary modal-close-btn">Cancelar</button>
-                        <button type="submit" class="btn-primary">Salvar Cliente</button>
+                        <button type="submit" class="btn-primary">Salvar Usuário</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- Added modal for viewing client details -->
-    <div id="modalDetalhesCliente" class="modal">
+    <div id="modalDetalhesUsuario" class="modal">
         <div class="modal-content modal-details">
             <div class="modal-header">
-                <h2>Detalhes do Cliente</h2>
+                <h2>Detalhes do Usuário</h2>
                 <button class="modal-close" id="closeDetailsModal">&times;</button>
             </div>
             <div class="modal-body">
+                <div class="user-profile-header">
+                    <div class="profile-avatar">
+                        <span id="detailAvatar">U</span>
+                    </div>
+                    <div class="profile-info">
+                        <h3 id="detailNomeHeader">-</h3>
+                        <span id="detailPermissaoHeader" class="badge">-</span>
+                    </div>
+                </div>
+
                 <div class="details-grid">
                     <div class="detail-item">
                         <div class="detail-icon">
-                            <i class="fas fa-user"></i>
+                            <i class="fas fa-envelope"></i>
                         </div>
                         <div class="detail-info">
-                            <span class="detail-label">Nome Completo</span>
-                            <span class="detail-value" id="detailNome">-</span>
+                            <span class="detail-label">Email</span>
+                            <span class="detail-value" id="detailEmail">-</span>
                         </div>
                     </div>
                     
@@ -269,37 +267,27 @@
                     
                     <div class="detail-item">
                         <div class="detail-icon">
-                            <i class="fas fa-envelope"></i>
+                            <i class="fas fa-briefcase"></i>
                         </div>
                         <div class="detail-info">
-                            <span class="detail-label">Email</span>
-                            <span class="detail-value" id="detailEmail">-</span>
+                            <span class="detail-label">Departamento</span>
+                            <span class="detail-value" id="detailDepartamento">-</span>
                         </div>
                     </div>
                     
                     <div class="detail-item">
                         <div class="detail-icon">
-                            <i class="fas fa-home"></i>
+                            <i class="fas fa-shield-alt"></i>
                         </div>
                         <div class="detail-info">
-                            <span class="detail-label">Tipo de Interesse</span>
-                            <span class="detail-value" id="detailInteresse">-</span>
+                            <span class="detail-label">Nível de Permissão</span>
+                            <span class="detail-value" id="detailPermissao">-</span>
                         </div>
                     </div>
                     
                     <div class="detail-item">
                         <div class="detail-icon">
-                            <i class="fas fa-dollar-sign"></i>
-                        </div>
-                        <div class="detail-info">
-                            <span class="detail-label">Valor Aproximado</span>
-                            <span class="detail-value" id="detailValor">-</span>
-                        </div>
-                    </div>
-                    
-                    <div class="detail-item">
-                        <div class="detail-icon">
-                            <i class="fas fa-chart-line"></i>
+                            <i class="fas fa-check-circle"></i>
                         </div>
                         <div class="detail-info">
                             <span class="detail-label">Status</span>
@@ -309,28 +297,28 @@
                     
                     <div class="detail-item">
                         <div class="detail-icon">
-                            <i class="fas fa-calendar"></i>
+                            <i class="fas fa-clock"></i>
                         </div>
                         <div class="detail-info">
-                            <span class="detail-label">Data de Cadastro</span>
-                            <span class="detail-value" id="detailData">-</span>
+                            <span class="detail-label">Último Acesso</span>
+                            <span class="detail-value" id="detailUltimoAcesso">-</span>
                         </div>
                     </div>
                     
                     <div class="detail-item detail-full">
                         <div class="detail-icon">
-                            <i class="fas fa-sticky-note"></i>
+                            <i class="fas fa-key"></i>
                         </div>
                         <div class="detail-info">
-                            <span class="detail-label">Observações</span>
-                            <span class="detail-value" id="detailObservacoes">-</span>
+                            <span class="detail-label">Permissões</span>
+                            <div id="detailPermissoes" class="permissions-list"></div>
                         </div>
                     </div>
                 </div>
                 
                 <div class="details-actions">
                     <button class="btn-primary" id="btnEditarDetalhes">
-                        <i class="fas fa-edit"></i> Editar Cliente
+                        <i class="fas fa-edit"></i> Editar Usuário
                     </button>
                     <button class="btn-secondary" id="btnFecharDetalhes">
                         Fechar
@@ -340,7 +328,6 @@
         </div>
     </div>
 
-    <!-- Added confirmation modal for delete actions -->
     <div id="modalConfirmacao" class="modal">
         <div class="modal-content modal-confirmation">
             <div class="modal-header">
@@ -352,7 +339,7 @@
                     <div class="confirmation-icon">
                         <i class="fas fa-exclamation-triangle"></i>
                     </div>
-                    <p id="confirmationMessage">Tem certeza que deseja excluir este cliente?</p>
+                    <p id="confirmationMessage">Tem certeza que deseja excluir este usuário?</p>
                     <p class="confirmation-warning">Esta ação não pode ser desfeita.</p>
                 </div>
                 <div class="confirmation-actions">
@@ -367,6 +354,6 @@
 
     <div id="toastNotification" class="toast"></div>
 
-    <script src="clientes.js"></script>
+    <script src="usuarios.js"></script>
 </body>
 </html>
