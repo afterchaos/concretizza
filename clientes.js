@@ -33,7 +33,6 @@ let clientes = JSON.parse(localStorage.getItem("clientes")) || [
     observacoes: "Casa de 4 quartos para venda",
     data: "2024-01-18",
   },
-  
 ]
 
 let editandoClienteId = null
@@ -75,6 +74,26 @@ function configurarEventos() {
 
   modal.addEventListener("click", (e) => {
     if (e.target === modal) fecharModal()
+  })
+
+  const modalDetalhes = document.getElementById("modalDetalhesCliente")
+  const closeDetailsModal = document.getElementById("closeDetailsModal")
+  const btnFecharDetalhes = document.getElementById("btnFecharDetalhes")
+  const btnEditarDetalhes = document.getElementById("btnEditarDetalhes")
+
+  closeDetailsModal.addEventListener("click", fecharModalDetalhes)
+  btnFecharDetalhes.addEventListener("click", fecharModalDetalhes)
+
+  btnEditarDetalhes.addEventListener("click", () => {
+    const clienteId = btnEditarDetalhes.dataset.clienteId
+    if (clienteId) {
+      fecharModalDetalhes()
+      abrirModalEditar(Number.parseInt(clienteId))
+    }
+  })
+
+  modalDetalhes.addEventListener("click", (e) => {
+    if (e.target === modalDetalhes) fecharModalDetalhes()
   })
 
   // Form submit
@@ -210,14 +229,14 @@ function atualizarTabela() {
     tbody.innerHTML = clientesPagina
       .map(
         (cliente) => `
-      <tr>
+      <tr style="cursor: pointer;" onclick="abrirModalDetalhes(${cliente.id})">
         <td>${cliente.nome}</td>
         <td>${cliente.telefone}</td>
         <td>${cliente.email || "-"}</td>
         <td>${formatarInteresse(cliente.interesse)}</td>
         <td><span class="badge badge-${cliente.status}">${formatarStatus(cliente.status)}</span></td>
         <td>${formatarData(cliente.data)}</td>
-        <td>
+        <td onclick="event.stopPropagation()">
           <button class="btn-small" onclick="abrirModalEditar(${cliente.id})">
             <i class="fas fa-edit"></i> Editar
           </button>
@@ -320,4 +339,31 @@ function carregarDados() {
   if (storedClientes) {
     clientes = JSON.parse(storedClientes)
   }
+}
+
+function abrirModalDetalhes(id) {
+  const cliente = clientes.find((c) => c.id === id)
+
+  if (cliente) {
+    document.getElementById("detailNome").textContent = cliente.nome
+    document.getElementById("detailTelefone").textContent = cliente.telefone
+    document.getElementById("detailEmail").textContent = cliente.email || "Não informado"
+    document.getElementById("detailInteresse").textContent = formatarInteresse(cliente.interesse)
+    document.getElementById("detailValor").textContent = cliente.valor || "Não informado"
+
+    const statusElement = document.getElementById("detailStatus")
+    const statusText = formatarStatus(cliente.status)
+    statusElement.innerHTML = `<span class="badge badge-${cliente.status}">${statusText}</span>`
+
+    document.getElementById("detailData").textContent = formatarData(cliente.data)
+    document.getElementById("detailObservacoes").textContent = cliente.observacoes || "Sem observações"
+
+    document.getElementById("btnEditarDetalhes").dataset.clienteId = id
+
+    document.getElementById("modalDetalhesCliente").classList.add("show")
+  }
+}
+
+function fecharModalDetalhes() {
+  document.getElementById("modalDetalhesCliente").classList.remove("show")
 }

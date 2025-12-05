@@ -519,6 +519,11 @@ body {
   animation: slideIn 0.3s ease;
 }
 
+/* Added styles for the details modal */
+.modal-details {
+  max-width: 700px;
+}
+
 @keyframes slideIn {
   from {
     transform: translateY(-50px);
@@ -556,6 +561,80 @@ body {
 
 .modal-close:hover {
   color: var(--color-gold-primary);
+}
+
+/* Added details grid styles for client information display */
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+}
+
+.detail-item {
+  display: flex;
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg);
+  background: rgba(255, 215, 0, 0.03);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: all 0.3s ease;
+}
+
+.detail-item:hover {
+  background: rgba(255, 215, 0, 0.08);
+  border-color: var(--color-border-gold);
+  transform: translateY(-2px);
+}
+
+.detail-full {
+  grid-column: 1 / -1;
+}
+
+.detail-icon {
+  width: 45px;
+  height: 45px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 215, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.detail-icon i {
+  font-size: 1.25rem;
+  color: var(--color-gold-primary);
+}
+
+.detail-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.detail-label {
+  font-size: 0.75rem;
+  color: var(--color-gray);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.detail-value {
+  font-size: 1rem;
+  color: var(--color-white);
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.details-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  justify-content: flex-end;
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--color-border);
 }
 
 /* ===== FORMS ===== */
@@ -719,6 +798,19 @@ body {
   .table th,
   .table td {
     padding: var(--spacing-sm) var(--spacing-md);
+  }
+
+  /* Added responsive styles for details modal */
+  .details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .details-actions {
+    flex-direction: column;
+  }
+
+  .details-actions button {
+    width: 100%;
   }
 }
 
