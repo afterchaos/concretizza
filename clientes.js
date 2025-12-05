@@ -38,6 +38,9 @@ let clientes = JSON.parse(localStorage.getItem("clientes")) || [
 let editandoClienteId = null
 let paginaAtual = 1
 const itensPorPagina = 10
+let clientesSelecionados = []
+let excluindoClienteId = null
+let excluindoEmMassa = false
 
 // ===== INICIALIZAÇÃO =====
 document.addEventListener("DOMContentLoaded", () => {
@@ -94,6 +97,48 @@ function configurarEventos() {
 
   modalDetalhes.addEventListener("click", (e) => {
     if (e.target === modalDetalhes) fecharModalDetalhes()
+  })
+
+  // Confirmation modal events
+  const modalConfirmacao = document.getElementById("modalConfirmacao")
+  const closeConfirmacao = document.getElementById("closeConfirmacao")
+  const btnCancelarExclusao = document.getElementById("btnCancelarExclusao")
+  const btnConfirmarExclusao = document.getElementById("btnConfirmarExclusao")
+
+  closeConfirmacao.addEventListener("click", fecharModalConfirmacao)
+  btnCancelarExclusao.addEventListener("click", fecharModalConfirmacao)
+  btnConfirmarExclusao.addEventListener("click", confirmarExclusao)
+
+  modalConfirmacao.addEventListener("click", (e) => {
+    if (e.target === modalConfirmacao) fecharModalConfirmacao()
+  })
+
+  // Select all checkbox event
+  document.getElementById("selectAll").addEventListener("change", (e) => {
+    const checkboxes = document.querySelectorAll(".checkbox-cliente")
+    checkboxes.forEach((checkbox) => {
+      checkbox.checked = e.target.checked
+      const clienteId = Number.parseInt(checkbox.dataset.clienteId)
+      if (e.target.checked) {
+        if (!clientesSelecionados.includes(clienteId)) {
+          clientesSelecionados.push(clienteId)
+        }
+      } else {
+        clientesSelecionados = clientesSelecionados.filter((id) => id !== clienteId)
+      }
+      const row = checkbox.closest("tr")
+      if (row) {
+        row.classList.toggle("selected", e.target.checked)
+      }
+    })
+    atualizarBulkActions()
+  })
+
+  // Bulk delete button event
+  document.getElementById("btnExcluirSelecionados").addEventListener("click", () => {
+    if (clientesSelecionados.length > 0) {
+      abrirModalConfirmacao(null, true)
+    }
   })
 
   // Form submit
@@ -170,6 +215,37 @@ function fecharModal() {
   editandoClienteId = null
 }
 
+function abrirModalConfirmacao(clienteId = null, emMassa = false) {
+  excluindoClienteId = clienteId
+  excluindoEmMassa = emMassa
+
+  const messageElement = document.getElementById("confirmationMessage")
+
+  if (emMassa) {
+    const qtd = clientesSelecionados.length
+    messageElement.textContent = `Tem certeza que deseja excluir ${qtd} cliente${qtd > 1 ? "s" : ""}?`
+  } else {
+    messageElement.textContent = "Tem certeza que deseja excluir este cliente?"
+  }
+
+  document.getElementById("modalConfirmacao").classList.add("show")
+}
+
+function fecharModalConfirmacao() {
+  document.getElementById("modalConfirmacao").classList.remove("show")
+  excluindoClienteId = null
+  excluindoEmMassa = false
+}
+
+function confirmarExclusao() {
+  if (excluindoEmMassa) {
+    excluirClientesSelecionados()
+  } else if (excluindoClienteId) {
+    executarExclusao(excluindoClienteId)
+  }
+  fecharModalConfirmacao()
+}
+
 // ===== CRUD =====
 function salvarCliente(e) {
   e.preventDefault()
@@ -204,13 +280,28 @@ function salvarCliente(e) {
 }
 
 function excluirCliente(id) {
-  if (confirm("Deseja realmente excluir este cliente?")) {
-    clientes = clientes.filter((c) => c.id !== id)
-    salvarDados()
-    atualizarTabela()
-    atualizarEstatisticas()
-    mostrarToast("Cliente excluído com sucesso!", "success")
-  }
+  abrirModalConfirmacao(id, false)
+}
+
+function executarExclusao(id) {
+  clientes = clientes.filter((c) => c.id !== id)
+  clientesSelecionados = clientesSelecionados.filter((cId) => cId !== id)
+  salvarDados()
+  atualizarTabela()
+  atualizarEstatisticas()
+  atualizarBulkActions()
+  mostrarToast("Cliente excluído com sucesso!", "success")
+}
+
+function excluirClientesSelecionados() {
+  const qtd = clientesSelecionados.length
+  clientes = clientes.filter((c) => !clientesSelecionados.includes(c.id))
+  clientesSelecionados = []
+  salvarDados()
+  atualizarTabela()
+  atualizarEstatisticas()
+  atualizarBulkActions()
+  mostrarToast(`${qtd} cliente${qtd > 1 ? "s excluídos" : " excluído"} com sucesso!`, "success")
 }
 
 // ===== TABELA =====
@@ -224,18 +315,25 @@ function atualizarTabela() {
   const clientesPagina = clientesFiltrados.slice(inicio, fim)
 
   if (clientesPagina.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center">Nenhum cliente encontrado</td></tr>'
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center">Nenhum cliente encontrado</td></tr>'
   } else {
     tbody.innerHTML = clientesPagina
       .map(
         (cliente) => `
-      <tr style="cursor: pointer;" onclick="abrirModalDetalhes(${cliente.id})">
-        <td>${cliente.nome}</td>
-        <td>${cliente.telefone}</td>
-        <td>${cliente.email || "-"}</td>
-        <td>${formatarInteresse(cliente.interesse)}</td>
-        <td><span class="badge badge-${cliente.status}">${formatarStatus(cliente.status)}</span></td>
-        <td>${formatarData(cliente.data)}</td>
+      <tr style="cursor: pointer;" class="${clientesSelecionados.includes(cliente.id) ? "selected" : ""}">
+        <td onclick="event.stopPropagation()">
+          <input type="checkbox" 
+                 class="checkbox-input checkbox-cliente" 
+                 data-cliente-id="${cliente.id}"
+                 ${clientesSelecionados.includes(cliente.id) ? "checked" : ""}
+                 onchange="toggleClienteSelecao(${cliente.id}, this.checked)">
+        </td>
+        <td onclick="abrirModalDetalhes(${cliente.id})">${cliente.nome}</td>
+        <td onclick="abrirModalDetalhes(${cliente.id})">${cliente.telefone}</td>
+        <td onclick="abrirModalDetalhes(${cliente.id})">${cliente.email || "-"}</td>
+        <td onclick="abrirModalDetalhes(${cliente.id})">${formatarInteresse(cliente.interesse)}</td>
+        <td onclick="abrirModalDetalhes(${cliente.id})"><span class="badge badge-${cliente.status}">${formatarStatus(cliente.status)}</span></td>
+        <td onclick="abrirModalDetalhes(${cliente.id})">${formatarData(cliente.data)}</td>
         <td onclick="event.stopPropagation()">
           <button class="btn-small" onclick="abrirModalEditar(${cliente.id})">
             <i class="fas fa-edit"></i> Editar
@@ -251,6 +349,7 @@ function atualizarTabela() {
   }
 
   atualizarPaginacao(clientesFiltrados.length)
+  atualizarBulkActions()
 }
 
 function atualizarPaginacao(totalItens) {
@@ -283,6 +382,8 @@ function obterClientesFiltrados() {
 
 function filtrarClientes() {
   paginaAtual = 1
+  clientesSelecionados = []
+  document.getElementById("selectAll").checked = false
   atualizarTabela()
 }
 
@@ -366,4 +467,44 @@ function abrirModalDetalhes(id) {
 
 function fecharModalDetalhes() {
   document.getElementById("modalDetalhesCliente").classList.remove("show")
+}
+
+function toggleClienteSelecao(clienteId, checked) {
+  if (checked) {
+    if (!clientesSelecionados.includes(clienteId)) {
+      clientesSelecionados.push(clienteId)
+    }
+  } else {
+    clientesSelecionados = clientesSelecionados.filter((id) => id !== clienteId)
+  }
+
+  const row = document.querySelector(`input[data-cliente-id="${clienteId}"]`).closest("tr")
+  if (row) {
+    row.classList.toggle("selected", checked)
+  }
+
+  atualizarBulkActions()
+}
+
+function atualizarBulkActions() {
+  const bulkActions = document.getElementById("bulkActions")
+  const selectedCount = document.getElementById("selectedCount")
+
+  if (clientesSelecionados.length > 0) {
+    bulkActions.style.display = "flex"
+    selectedCount.textContent = `${clientesSelecionados.length} cliente${
+      clientesSelecionados.length > 1 ? "s selecionado" : " selecionado"
+    }${clientesSelecionados.length > 1 ? "s" : ""}`
+  } else {
+    bulkActions.style.display = "none"
+  }
+
+  // Update select all checkbox
+  const checkboxes = document.querySelectorAll(".checkbox-cliente")
+  const selectAll = document.getElementById("selectAll")
+  if (checkboxes.length > 0) {
+    selectAll.checked = checkboxes.length === clientesSelecionados.length
+  } else {
+    selectAll.checked = false
+  }
 }
