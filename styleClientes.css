@@ -486,6 +486,13 @@ body {
   background: none;
   border: 1px solid var(--color-border);
   color: var(--color-gold-primary);
+  /* Forcing exact same width for both buttons */
+  min-width: 90px;
+  max-width: 90px;
+  width: 90px;
+  justify-content: center;
+  white-space: nowrap;
+  text-align: center;
 }
 
 .btn-small:hover {
@@ -494,14 +501,56 @@ body {
 }
 
 .btn-danger {
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  color: #ff6464;
-  border: 1px solid rgba(255, 100, 100, 0.3);
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9375rem;
   background: none;
+  color: #ff6464;
+  border: 1px solid #ff6464;
 }
 
 .btn-danger:hover {
+  background-color: rgba(255, 100, 100, 0.1);
+}
+
+/* Added btn-action class to standardize edit and delete button sizes in table */
+.btn-action {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  min-width: 95px;
+  width: 95px;
+  justify-content: center;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.btn-action.btn-edit {
+  background: none;
+  border: 1px solid var(--color-border);
+  color: var(--color-gold-primary);
+}
+
+.btn-action.btn-edit:hover {
+  background-color: rgba(255, 215, 0, 0.1);
+  border-color: var(--color-gold-primary);
+}
+
+.btn-action.btn-delete {
+  /* Removed background gradient and hover effects from delete button */
+  background: none;
+  color: #ff6464;
+  border: 1px solid var(--color-border);
+}
+
+.btn-action.btn-delete:hover {
+  /* Removed transform and shadow animations */
   background-color: rgba(255, 100, 100, 0.1);
   border-color: #ff6464;
 }
@@ -811,6 +860,7 @@ body {
 
 .confirmation-actions button {
   flex: 1;
+  justify-content: center;
 }
 
 /* ===== RESPONSIVIDADE ===== */

@@ -330,15 +330,16 @@ function atualizarTabela() {
         </td>
         <td onclick="abrirModalDetalhes(${cliente.id})">${cliente.nome}</td>
         <td onclick="abrirModalDetalhes(${cliente.id})">${cliente.telefone}</td>
-        <td onclick="abrirModalDetalhes(${cliente.id})">${cliente.email || "-"}</td>
         <td onclick="abrirModalDetalhes(${cliente.id})">${formatarInteresse(cliente.interesse)}</td>
         <td onclick="abrirModalDetalhes(${cliente.id})"><span class="badge badge-${cliente.status}">${formatarStatus(cliente.status)}</span></td>
+        <td onclick="abrirModalDetalhes(${cliente.id})">${cliente.email || "-"}</td>
         <td onclick="abrirModalDetalhes(${cliente.id})">${formatarData(cliente.data)}</td>
+        
         <td onclick="event.stopPropagation()">
-          <button class="btn-small" onclick="abrirModalEditar(${cliente.id})">
+          <button class="btn-action btn-edit" onclick="abrirModalEditar(${cliente.id})">
             <i class="fas fa-edit"></i> Editar
           </button>
-          <button class="btn-danger" onclick="excluirCliente(${cliente.id})">
+          <button class="btn-action btn-delete" onclick="excluirCliente(${cliente.id})">
             <i class="fas fa-trash"></i> Excluir
           </button>
         </td>
