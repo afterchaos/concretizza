@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Concretizza - Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styleDashboard.css">
+</head>
+<body class="app-page">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="brand">
+                <i class="fas fa-building"></i>
+                <span>Concretizza</span>
+            </div>
+            <button class="sidebar-toggle-mobile" id="sidebarToggle">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="#dashboard" class="nav-item active" data-page="dashboard">
+                <i class="fas fa-chart-line"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="#clientes" class="nav-item" data-page="clientes">
+                <i class="fas fa-users"></i>
+                <span>Clientes</span>
+            </a>
+            <a href="#agendamentos" class="nav-item" data-page="agendamentos">
+                <i class="fas fa-calendar"></i>
+                <span>Agendamentos</span>
+            </a>
+
+            <div id="adminSection" class="admin-section" style="display: none;">
+                <div class="nav-divider"></div>
+                <p class="nav-label">Administração</p>
+                <a href="#usuarios" class="nav-item" data-page="usuarios">
+                    <i class="fas fa-user-tie"></i>
+                    <span>Gerenciar Usuários</span>
+                </a>
+                <a href="#permissoes" class="nav-item" data-page="permissoes">
+                    <i class="fas fa-lock"></i>
+                    <span>Permissões</span>
+                </a>
+            </div>
+
+            <div class="nav-divider"></div>
+            <a href="#" class="nav-item" id="logoutBtn">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Sair</span>
+            </a>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <button class="sidebar-toggle" id="sidebarToggleMobile">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 id="pageTitle">Dashboard</h1>
+            </div>
+            <div class="header-right">
+                <div class="user-info">
+                    <span id="userName">Usuário</span>
+                    <span id="userRole" class="user-role">Admin</span>
+                </div>
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='50%25' fill='%23FFD700'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23000' font-size='20' font-family='Arial'%3EU%3C/text%3E%3C/svg%3E" alt="Avatar" class="avatar">
+            </div>
+        </header>
+
+        <!-- Page Content -->
+        <div class="page-content">
+            <!-- Dashboard -->
+            <div id="dashboardPage" class="page active">
+                <div class="dashboard-grid">
+                    <div class="card-metric">
+                        <div class="card-header">
+                            <h3>Total de Clientes</h3>
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="card-value" id="totalClientes">0</div>
+                        <div class="card-subtitle">Cadastrados no sistema</div>
+                    </div>
+
+                    <div class="card-metric">
+                        <div class="card-header">
+                            <h3>Clientes Novos</h3>
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <div class="card-value" id="clientesNovos">0</div>
+                        <div class="card-subtitle">Este mês</div>
+                    </div>
+
+                    <div class="card-metric">
+                        <div class="card-header">
+                            <h3>Clientes Quentes</h3>
+                            <i class="fas fa-fire"></i>
+                        </div>
+                        <div class="card-value" id="clientesQuentes">0</div>
+                        <div class="card-subtitle">Alto potencial</div>
+                    </div>
+
+                    <div class="card-metric">
+                        <div class="card-header">
+                            <h3>Clientes Frios</h3>
+                            <i class="fas fa-snowflake"></i>
+                        </div>
+                        <div class="card-value" id="clientesFrios">0</div>
+                        <div class="card-subtitle">Baixo engajamento</div>
+                    </div>
+
+                    <div class="card-metric">
+                        <div class="card-header">
+                            <h3>Agendamentos</h3>
+                            <i class="fas fa-calendar-check"></i>
+                        </div>
+                        <div class="card-value" id="agendamentosProximos">0</div>
+                        <div class="card-subtitle">Próximos 7 dias</div>
+                    </div>
+                </div>
+
+                <div class="dashboard-section">
+                    <div class="section-header">
+                        <h2>Últimos Clientes Cadastrados</h2>
+                        <a href="#clientes" class="btn-secondary btn-small" data-page="clientes">Ver todos</a>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Telefone</th>
+                                    <th>Data</th>
+                                    <th>Interesse</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentClientsTable">
+                                <tr>
+                                    <td colspan="5" class="text-center">Nenhum cliente cadastrado</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Clientes -->
+            <div id="clientesPage" class="page">
+                <div class="page-header">
+                    <div class="filter-bar">
+                        <input type="text" id="searchClientes" placeholder="Buscar por nome ou telefone..." class="search-input">
+                        <select id="filterStatus" class="select-input">
+                            <option value="">Todos os status</option>
+                            <option value="novo">Novo</option>
+                            <option value="quente">Quente</option>
+                            <option value="frio">Frio</option>
+                            <option value="em-atendimento">Em Atendimento</option>
+                            <option value="finalizado">Finalizado</option>
+                        </select>
+                        <select id="filterInteresse" class="select-input">
+                            <option value="">Todos os interesses</option>
+                            <option value="alugar">Alugar</option>
+                            <option value="comprar">Comprar</option>
+                            <option value="vender">Vender</option>
+                        </select>
+                        <button class="btn-primary" id="btnNovoCliente">
+                            <i class="fas fa-plus"></i> Novo Cliente
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Telefone</th>
+                                <th>Email</th>
+                                <th>Interesse</th>
+                                <th>Status</th>
+                                <th>Data</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clientesTable">
+                            <tr>
+                                <td colspan="7" class="text-center">Nenhum cliente encontrado</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="pagination">
+                    <button class="btn-secondary" id="prevPage">Anterior</button>
+                    <span id="pageInfo">Página 1</span>
+                    <button class="btn-secondary" id="nextPage">Próxima</button>
+                </div>
+            </div>
+
+            <!-- Agendamentos -->
+            <div id="agendamentosPage" class="page">
+                <div class="page-header">
+                    <button class="btn-primary" id="btnNovoAgendamento">
+                        <i class="fas fa-plus"></i> Novo Agendamento
+                    </button>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Cliente</th>
+                                <th>Data</th>
+                                <th>Hora</th>
+                                <th>Tipo</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="agendamentosTable">
+                            <tr>
+                                <td colspan="6" class="text-center">Nenhum agendamento</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Usuários (Admin) -->
+            <div id="usuariosPage" class="page">
+                <div class="page-header">
+                    <button class="btn-primary" id="btnNovoUsuario">
+                        <i class="fas fa-plus"></i> Novo Usuário
+                    </button>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Usuário</th>
+                                <th>Email</th>
+                                <th>Clientes</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usuariosTable">
+                            <tr>
+                                <td colspan="5" class="text-center">Nenhum usuário</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Permissões (Admin) -->
+            <div id="permissoesPage" class="page">
+                <div class="permission-container">
+                    <h2>Gerenciar Permissões de Clientes</h2>
+                    <p class="text-muted">Atribua clientes para usuários específicos</p>
+
+                    <div class="permission-grid">
+                        <div class="permission-card">
+                            <label for="userSelect">Selecionar usuário:</label>
+                            <select id="userSelect" class="select-input">
+                                <option value="">Escolha um usuário</option>
+                            </select>
+                        </div>
+
+                        <div class="permission-card">
+                            <label for="clienteSelect">Clientes disponíveis:</label>
+                            <div id="clientesList" class="clients-list">
+                                <p class="text-muted">Selecione um usuário primeiro</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modais -->
+    <div id="modalCliente" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Novo Cliente</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="formCliente" class="form">
+                <div class="form-group">
+                    <label for="clienteNome">Nome Completo *</label>
+                    <input type="text" id="clienteNome" required>
+                </div>
+                <div class="form-group">
+                    <label for="clienteTelefone">Telefone *</label>
+                    <input type="tel" id="clienteTelefone" required>
+                </div>
+                <div class="form-group">
+                    <label for="clienteEmail">Email</label>
+                    <input type="email" id="clienteEmail">
+                </div>
+                <div class="form-group">
+                    <label for="clienteInteresse">Tipo de Interesse *</label>
+                    <select id="clienteInteresse" required>
+                        <option value="">Selecione</option>
+                        <option value="alugar">Alugar</option>
+                        <option value="comprar">Comprar</option>
+                        <option value="vender">Vender</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="clienteValor">Valor Aproximado (R$)</label>
+                    <input type="number" id="clienteValor">
+                </div>
+                <div class="form-group">
+                    <label for="clienteStatus">Status *</label>
+                    <select id="clienteStatus" required>
+                        <option value="novo">Novo</option>
+                        <option value="em-atendimento">Em Atendimento</option>
+                        <option value="quente">Quente</option>
+                        <option value="frio">Frio</option>
+                        <option value="finalizado">Finalizado</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="clienteObservacoes">Observações</label>
+                    <textarea id="clienteObservacoes" rows="4"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary modal-close-btn">Cancelar</button>
+                    <button type="submit" class="btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modalAgendamento" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Novo Agendamento</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="formAgendamento" class="form">
+                <div class="form-group">
+                    <label for="agendClienteId">Cliente *</label>
+                    <select id="agendClienteId" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="agendData">Data *</label>
+                    <input type="date" id="agendData" required>
+                </div>
+                <div class="form-group">
+                    <label for="agendHora">Hora *</label>
+                    <input type="time" id="agendHora" required>
+                </div>
+                <div class="form-group">
+                    <label for="agendTipo">Tipo *</label>
+                    <select id="agendTipo" required>
+                        <option value="visita">Visita</option>
+                        <option value="reuniao">Reunião</option>
+                        <option value="chamada">Chamada</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="agendObservacoes">Observações</label>
+                    <textarea id="agendObservacoes" rows="3"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary modal-close-btn">Cancelar</button>
+                    <button type="submit" class="btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modalUsuario" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Novo Usuário</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="formUsuario" class="form">
+                <div class="form-group">
+                    <label for="usuarioNome">Nome Completo *</label>
+                    <input type="text" id="usuarioNome" required>
+                </div>
+                <div class="form-group">
+                    <label for="usuarioUsername">Usuário (login) *</label>
+                    <input type="text" id="usuarioUsername" required>
+                </div>
+                <div class="form-group">
+                    <label for="usuarioEmail">Email</label>
+                    <input type="email" id="usuarioEmail">
+                </div>
+                <div class="form-group">
+                    <label for="usuarioSenha">Senha *</label>
+                    <input type="password" id="usuarioSenha" required>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary modal-close-btn">Cancelar</button>
+                    <button type="submit" class="btn-primary">Criar Usuário</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="toastNotification" class="toast"></div>
+
+    <script src="dados.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
