@@ -141,7 +141,7 @@ app.delete("/api/usuarios/:id", (req, res) => {
 
 // Servir arquivos estáticos
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "../src/pages/login.html"))
+  res.sendFile(path.join(__dirname, "../src/pages/index.html"))
 })
 
 // Iniciar servidor
