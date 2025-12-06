@@ -9,12 +9,29 @@ let excluindoEmMassa = false
 // API BASE URL - ajusta automaticamente para localhost ou produção
 const API_URL = window.location.hostname === "localhost" ? "http://localhost:3000" : ""
 
-// ===== INICIALIZAÇÃO =====
 document.addEventListener("DOMContentLoaded", () => {
+  verificarAutenticacaoUsuarios()
   carregarUsuariosDoServidor()
   configurarEventos()
   atualizarEstatisticas()
+  aplicarPermissoesUsuarios()
 })
+
+function verificarAutenticacaoUsuarios() {
+  const usuario = obterUsuarioLogado()
+  if (!usuario || !isAdmin()) {
+    window.location.href = 'dashboard.html'
+  }
+}
+
+function aplicarPermissoesUsuarios() {
+  const usuario = obterUsuarioLogado()
+  const btnNovoUsuario = document.getElementById('btnNovoUsuario')
+  
+  if (btnNovoUsuario) {
+    btnNovoUsuario.style.display = isAdmin() ? 'flex' : 'none'
+  }
+}
 
 async function carregarUsuariosDoServidor() {
   try {
@@ -249,9 +266,13 @@ function confirmarExclusao() {
   fecharModalConfirmacao()
 }
 
-// ===== CRUD =====
 async function salvarUsuario(e) {
   e.preventDefault()
+
+  if (!isAdmin()) {
+    mostrarToast("Apenas administradores podem gerenciar usuários", "error")
+    return
+  }
 
   const usuarioData = {
     id: editandoUsuarioId || Math.max(0, ...usuarios.map((u) => u.id || 0)) + 1,
@@ -317,6 +338,11 @@ async function salvarUsuario(e) {
 }
 
 async function executarExclusao(id) {
+  if (!isAdmin()) {
+    mostrarToast("Apenas administradores podem deletar usuários", "error")
+    return
+  }
+
   try {
     console.log("[v0] Excluindo usuário ID:", id)
 
@@ -348,6 +374,11 @@ async function executarExclusao(id) {
 }
 
 async function excluirUsuariosSelecionados() {
+  if (!isAdmin()) {
+    mostrarToast("Apenas administradores podem deletar usuários", "error")
+    return
+  }
+
   try {
     console.log("[v0] Excluindo", usuariosSelecionados.length, "usuários")
 

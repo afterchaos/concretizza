@@ -106,18 +106,26 @@ function handleSubmit(event) {
   console.log("[v0] Password digitado:", password)
 
   const defaultUsers = [
-    { id: "default_admin", username: "admin", senha: "123", nome: "Administrador", cargo: "Admin" },
-    { id: "default_user", username: "user", senha: "123", nome: "Usuário", cargo: "User" },
+    { id: "default_admin", username: "admin", senha: "123", nome: "Administrador", cargo: "admin" },
+    { id: "default_editor", username: "editor", senha: "123", nome: "Editor", cargo: "editor" },
+    { id: "default_viewer", username: "viewer", senha: "123", nome: "Visualizador", cargo: "visualizar" },
   ]
 
   const usuariosDoStorage = JSON.parse(localStorage.getItem("usuarios")) || []
-  const usuariosCadastrados = usuariosDoStorage.map((u) => ({
-    id: u.id,
-    username: u.email,
-    senha: u.senha,
-    nome: u.nome,
-    cargo: u.permissao || "User",
-  }))
+  const usuariosCadastrados = usuariosDoStorage.map((u) => {
+    let cargo = u.permissao || u.cargo || "visualizar"
+    if (cargo.toLowerCase() === "admin") cargo = "admin"
+    else if (cargo.toLowerCase() === "editor") cargo = "editor"
+    else if (cargo.toLowerCase() === "user") cargo = "editor"
+    else cargo = "visualizar"
+    return {
+      id: u.id,
+      username: u.email,
+      senha: u.senha,
+      nome: u.nome,
+      cargo: cargo,
+    }
+  })
 
   const usuarios = [...defaultUsers, ...usuariosCadastrados]
 
@@ -138,7 +146,8 @@ function handleSubmit(event) {
       id: userFound.id,
       username: userFound.username,
       nome: userFound.nome,
-      cargo: userFound.cargo,
+      cargo: userFound.cargo || userFound.permissao || 'visualizar',
+      permissao: userFound.cargo || userFound.permissao || 'visualizar',
     }),
   )
 

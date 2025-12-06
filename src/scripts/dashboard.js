@@ -34,7 +34,7 @@ function carregarDadosUsuario() {
     console.log("[v0] Cargo do usuário:", usuarioLogado.cargo)
     const adminSection = document.getElementById("adminSection")
     if (adminSection) {
-      if (usuarioLogado.cargo === "Admin") {
+      if (usuarioLogado.cargo && usuarioLogado.cargo.toLowerCase() === "admin") {
         adminSection.style.display = "block"
         console.log("[v0] Seção admin exibida")
       } else {

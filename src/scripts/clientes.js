@@ -1,9 +1,9 @@
-// ===== INICIALIZAÇÃO =====
 document.addEventListener("DOMContentLoaded", () => {
   verificarAutenticacao()
   carregarDadosUsuario()
   carregarClientes()
   configurarEventos()
+  aplicarPermissoes()
 })
 
 // ===== AUTENTICAÇÃO =====
@@ -32,7 +32,7 @@ function carregarDadosUsuario() {
 
     const adminSection = document.getElementById("adminSection")
     if (adminSection) {
-      if (usuarioLogado.cargo === "Admin") {
+      if (usuarioLogado.cargo && usuarioLogado.cargo.toLowerCase() === "admin") {
         adminSection.style.display = "block"
       } else {
         adminSection.style.display = "none"
@@ -76,8 +76,47 @@ function atualizarEstatisticas() {
   document.getElementById("clientesFrios").textContent = clientesFrios
 }
 
+function atualizarPaginacao() {
+  const totalPaginas = Math.ceil(clientesFiltrados.length / itensPorPagina)
+  document.getElementById("pageInfo").textContent = `Página ${currentPage} de ${totalPaginas}`
+  document.getElementById("prevPage").disabled = currentPage === 1
+  document.getElementById("nextPage").disabled = currentPage === totalPaginas
+}
+
+function aplicarPermissoes() {
+  const usuario = obterUsuarioLogado()
+  if (!usuario) return
+
+  const btnNovoCliente = document.getElementById('btnNovoCliente')
+  const podeEditar = obterPermissao(usuario, 'clientes', 'update')
+  const podeCriar = obterPermissao(usuario, 'clientes', 'create')
+  const podeDeletar = obterPermissao(usuario, 'clientes', 'delete')
+  const podeVer = obterPermissao(usuario, 'clientes', 'read')
+
+  if (!podeVer) {
+    window.location.href = 'dashboard.html'
+    return
+  }
+
+  if (btnNovoCliente) {
+    btnNovoCliente.style.display = podeCriar ? 'flex' : 'none'
+  }
+
+  document.getElementById('bulkActions').style.display = 'none'
+  if (!podeDeletar) {
+    const btnExcluirSelecionados = document.getElementById('btnExcluirSelecionados')
+    if (btnExcluirSelecionados) {
+      btnExcluirSelecionados.style.display = 'none'
+    }
+  }
+}
+
 function atualizarTabela() {
   const tbody = document.getElementById("clientesTable")
+  const usuarioLogado = obterUsuarioLogado()
+  const podeEditar = obterPermissao(usuarioLogado, 'clientes', 'update')
+  const podeDeletar = obterPermissao(usuarioLogado, 'clientes', 'delete')
+  
   const inicio = (currentPage - 1) * itensPorPagina
   const fim = inicio + itensPorPagina
   const clientesPagina = clientesFiltrados.slice(inicio, fim)
@@ -89,7 +128,6 @@ function atualizarTabela() {
       .map(
         (cliente) => `
       <tr onclick="abrirDetalhesCliente(${cliente.id})" style="cursor: pointer;">
-        <!-- Adicionando coluna de checkbox para seleção múltipla -->
         <td onclick="event.stopPropagation();">
           <input type="checkbox" class="checkbox-input cliente-checkbox" data-id="${cliente.id}">
         </td>
@@ -100,14 +138,12 @@ function atualizarTabela() {
         <td>${cliente.email || "-"}</td>
         <td>${formatarData(cliente.data)}</td>
         <td onclick="event.stopPropagation();">
-          <!-- Corrigindo classe do botão editar para btn-edit -->
-          <button class="btn-action btn-edit" onclick="editarCliente(${cliente.id})" title="Editar">
+          ${podeEditar ? `<button class="btn-action btn-edit" onclick="editarCliente(${cliente.id})" title="Editar">
             <i class="fas fa-edit"></i> Editar
-          </button>
-          <!-- Corrigindo classe do botão deletar para btn-delete e adicionando texto -->
-          <button class="btn-action btn-delete" onclick="excluirCliente(${cliente.id})" title="Excluir">
+          </button>` : ''}
+          ${podeDeletar ? `<button class="btn-action btn-delete" onclick="excluirCliente(${cliente.id})" title="Excluir">
             <i class="fas fa-trash"></i> Excluir
-          </button>
+          </button>` : ''}
         </td>
       </tr>
     `,
@@ -117,13 +153,6 @@ function atualizarTabela() {
 
   atualizarPaginacao()
   atualizarCheckboxes()
-}
-
-function atualizarPaginacao() {
-  const totalPaginas = Math.ceil(clientesFiltrados.length / itensPorPagina)
-  document.getElementById("pageInfo").textContent = `Página ${currentPage} de ${totalPaginas}`
-  document.getElementById("prevPage").disabled = currentPage === 1
-  document.getElementById("nextPage").disabled = currentPage === totalPaginas
 }
 
 // ===== EVENTOS =====
@@ -302,6 +331,12 @@ function filtrarClientes() {
 }
 
 function salvarCliente() {
+  const usuario = obterUsuarioLogado()
+  if (!obterPermissao(usuario, 'clientes', clienteEmEdicao ? 'update' : 'create')) {
+    mostrarNotificacao('Você não tem permissão para fazer isso')
+    return
+  }
+
   const nome = document.getElementById("clienteNome").value
   const telefone = document.getElementById("clienteTelefone").value
   const email = document.getElementById("clienteEmail").value
@@ -343,6 +378,12 @@ function salvarCliente() {
 }
 
 function editarCliente(id) {
+  const usuario = obterUsuarioLogado()
+  if (!obterPermissao(usuario, 'clientes', 'update')) {
+    mostrarNotificacao('Você não tem permissão para editar')
+    return
+  }
+
   const cliente = clientes.find((c) => c.id === id)
   if (cliente) {
     clienteEmEdicao = id
@@ -360,6 +401,12 @@ function editarCliente(id) {
 }
 
 function excluirCliente(id) {
+  const usuario = obterUsuarioLogado()
+  if (!obterPermissao(usuario, 'clientes', 'delete')) {
+    mostrarNotificacao('Você não tem permissão para deletar')
+    return
+  }
+
   const cliente = clientes.find((c) => c.id === id)
   if (cliente) {
     document.getElementById("confirmationMessage").textContent =
@@ -372,7 +419,6 @@ function excluirCliente(id) {
     const btnCancelar = document.getElementById("btnCancelarExclusao")
     const closeConfirmacao = document.getElementById("closeConfirmacao")
 
-    // Criar nova função para confirmar exclusão
     const confirmarExclusao = () => {
       clientes = clientes.filter((c) => c.id !== id)
       salvarClientes()
@@ -380,7 +426,6 @@ function excluirCliente(id) {
       modal.style.display = "none"
       mostrarNotificacao("Cliente excluído com sucesso!")
 
-      // Remover listeners após confirmar
       btnConfirmar.removeEventListener("click", confirmarExclusao)
       btnCancelar.removeEventListener("click", cancelarExclusao)
       closeConfirmacao.removeEventListener("click", cancelarExclusao)
