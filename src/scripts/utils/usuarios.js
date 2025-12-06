@@ -19,16 +19,43 @@ document.addEventListener("DOMContentLoaded", () => {
 async function carregarUsuariosDoServidor() {
   try {
     console.log("[v0] Carregando usuários do servidor...")
-    const response = await fetch(`${API_URL}/api/usuarios`)
-    if (!response.ok) throw new Error("Erro ao carregar usuários")
+    const response = await fetch(`${API_URL}/api/usuarios`).catch(() => null)
 
-    usuarios = await response.json()
-    console.log("[v0] Usuários carregados:", usuarios.length)
+    if (response && response.ok) {
+      usuarios = await response.json()
+      console.log("[v0] Usuários carregados da API:", usuarios.length)
+    } else {
+      const usuariosLocalStorage = JSON.parse(localStorage.getItem("usuarios")) || [
+        {
+          id: 1,
+          nome: "Administrador",
+          email: "admin@email.com",
+          permissao: "admin",
+          status: "ativo",
+          telefone: "(11) 99999-9999",
+          departamento: "Administrativo",
+          ultimoAcesso: "2025-01-15",
+        },
+        {
+          id: 2,
+          nome: "Editor",
+          email: "editor@email.com",
+          permissao: "editor",
+          status: "ativo",
+          telefone: "(11) 98888-8888",
+          departamento: "Conteúdo",
+          ultimoAcesso: "2025-01-10",
+        },
+      ]
+      usuarios = usuariosLocalStorage
+      console.log("[v0] Usuários carregados do localStorage:", usuarios.length)
+    }
+
     atualizarTabela()
     atualizarEstatisticas()
   } catch (error) {
     console.error("[v0] Erro ao carregar usuários:", error)
-    mostrarToast("Erro ao carregar usuários do servidor", "error")
+    mostrarToast("Usando dados locais. API indisponível.", "warning")
   }
 }
 
@@ -227,13 +254,20 @@ async function salvarUsuario(e) {
   e.preventDefault()
 
   const usuarioData = {
-    nome: document.getElementById("usuarioNome").value,
-    email: document.getElementById("usuarioEmail").value,
+    id: editandoUsuarioId || Math.max(0, ...usuarios.map((u) => u.id || 0)) + 1,
+    nome: document.getElementById("usuarioNome").value.trim(),
+    email: document.getElementById("usuarioEmail").value.trim(),
     permissao: document.getElementById("usuarioPermissao").value,
     status: document.getElementById("usuarioStatus").value,
-    telefone: document.getElementById("usuarioTelefone").value,
-    departamento: document.getElementById("usuarioDepartamento").value,
+    telefone: document.getElementById("usuarioTelefone").value.trim(),
+    departamento: document.getElementById("usuarioDepartamento").value.trim(),
     senha: document.getElementById("usuarioSenha").value,
+    ultimoAcesso: new Date().toISOString().split("T")[0],
+  }
+
+  if (!usuarioData.nome || !usuarioData.email || (!editandoUsuarioId && !usuarioData.senha)) {
+    mostrarToast("Preencha todos os campos obrigatórios", "error")
+    return
   }
 
   try {
@@ -245,24 +279,37 @@ async function salvarUsuario(e) {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(usuarioData),
-      })
+      }).catch(() => null)
 
-      if (!response.ok) throw new Error("Erro ao atualizar usuário")
-      mostrarToast("Usuário atualizado com sucesso!", "success")
+      if (response && response.ok) {
+        mostrarToast("Usuário atualizado com sucesso!", "success")
+      } else {
+        usuarios = usuarios.map((u) => (u.id === editandoUsuarioId ? usuarioData : u))
+        localStorage.setItem("usuarios", JSON.stringify(usuarios))
+        mostrarToast("Usuário atualizado localmente!", "success")
+      }
     } else {
-      console.log("[v0] Criando novo usuário")
+      console.log("[v0] Criando novo usuário:", usuarioData)
       response = await fetch(`${API_URL}/api/usuarios`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(usuarioData),
-      })
+      }).catch(() => null)
 
-      if (!response.ok) throw new Error("Erro ao criar usuário")
-      mostrarToast("Usuário cadastrado com sucesso!", "success")
+      if (response && response.ok) {
+        const novoUsuario = await response.json()
+        usuarios.push(novoUsuario)
+        mostrarToast("Usuário cadastrado com sucesso!", "success")
+      } else {
+        usuarios.push(usuarioData)
+        localStorage.setItem("usuarios", JSON.stringify(usuarios))
+        mostrarToast("Usuário cadastrado localmente!", "success")
+      }
     }
 
     fecharModal()
-    await carregarUsuariosDoServidor()
+    atualizarTabela()
+    atualizarEstatisticas()
   } catch (error) {
     console.error("[v0] Erro ao salvar usuário:", error)
     mostrarToast("Erro ao salvar usuário", "error")
@@ -272,15 +319,28 @@ async function salvarUsuario(e) {
 async function executarExclusao(id) {
   try {
     console.log("[v0] Excluindo usuário ID:", id)
-    const response = await fetch(`${API_URL}/api/usuarios/${id}`, {
-      method: "DELETE",
-    })
 
-    if (!response.ok) throw new Error("Erro ao excluir usuário")
+    try {
+      const response = await fetch(`${API_URL}/api/usuarios/${id}`, {
+        method: "DELETE",
+      })
+      if (response.ok) {
+        usuariosSelecionados = usuariosSelecionados.filter((uId) => uId !== id)
+        mostrarToast("Usuário excluído com sucesso!", "success")
+        await carregarUsuariosDoServidor()
+        return
+      }
+    } catch (apiError) {
+      console.log("[v0] API não disponível, usando localStorage")
+    }
 
-    usuariosSelecionados = usuariosSelecionados.filter((uId) => uId !== id)
-    mostrarToast("Usuário excluído com sucesso!", "success")
-    await carregarUsuariosDoServidor()
+    if (usuarios && Array.isArray(usuarios)) {
+      usuarios = usuarios.filter((u) => u.id !== id)
+      localStorage.setItem("usuarios", JSON.stringify(usuarios))
+      usuariosSelecionados = usuariosSelecionados.filter((uId) => uId !== id)
+      mostrarToast("Usuário excluído com sucesso!", "success")
+      await carregarUsuariosDoServidor()
+    }
   } catch (error) {
     console.error("[v0] Erro ao excluir usuário:", error)
     mostrarToast("Erro ao excluir usuário", "error")
@@ -291,11 +351,22 @@ async function excluirUsuariosSelecionados() {
   try {
     console.log("[v0] Excluindo", usuariosSelecionados.length, "usuários")
 
-    for (const id of usuariosSelecionados) {
-      const response = await fetch(`${API_URL}/api/usuarios/${id}`, {
-        method: "DELETE",
-      })
-      if (!response.ok) throw new Error(`Erro ao excluir usuário ${id}`)
+    let apiSuccess = false
+    try {
+      for (const id of usuariosSelecionados) {
+        const response = await fetch(`${API_URL}/api/usuarios/${id}`, {
+          method: "DELETE",
+        })
+        if (!response.ok) throw new Error(`Erro ao excluir usuário ${id}`)
+      }
+      apiSuccess = true
+    } catch (apiError) {
+      console.log("[v0] API não disponível, usando localStorage")
+    }
+
+    if (!apiSuccess && usuarios && Array.isArray(usuarios)) {
+      usuarios = usuarios.filter((u) => !usuariosSelecionados.includes(u.id))
+      localStorage.setItem("usuarios", JSON.stringify(usuarios))
     }
 
     const qtd = usuariosSelecionados.length

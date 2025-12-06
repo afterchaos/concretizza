@@ -795,8 +795,10 @@ body {
   font-size: 0.875rem !important;
 }
 
+/* Invert button order visually using flex-direction reverse */
 .confirmation-actions {
   display: flex;
+  flex-direction: row-reverse;
   gap: var(--spacing-md);
   margin-top: var(--spacing-xl);
 }
