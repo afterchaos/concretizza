@@ -1,7 +1,13 @@
 const PERMISSIONS = {
+  'head-admin': {
+    clientes: ['create', 'read', 'update', 'delete'],
+    usuarios: ['create', 'read', 'update', 'delete', 'manage-admins'],
+    logs: ['read'],
+  },
   admin: {
     clientes: ['create', 'read', 'update', 'delete'],
-    usuarios: ['create', 'read', 'update', 'delete'],
+    usuarios: ['read'],
+    logs: ['read'],
   },
   editor: {
     clientes: ['create', 'read', 'update', 'delete'],
@@ -49,7 +55,38 @@ function isAdmin() {
   return usuario?.cargo?.toLowerCase() === 'admin'
 }
 
+function isHeadAdmin() {
+  const usuario = obterUsuarioLogado()
+  return usuario?.cargo?.toLowerCase() === 'head-admin'
+}
+
+function isAdminOrHeadAdmin() {
+  const usuario = obterUsuarioLogado()
+  const cargo = usuario?.cargo?.toLowerCase()
+  return cargo === 'admin' || cargo === 'head-admin'
+}
+
 function bloqueado(mensagem = 'Você não tem permissão para realizar esta ação') {
   alert(mensagem)
   return false
+}
+
+function formatarCargo(cargo) {
+  if (!cargo) return 'User'
+  const cargoLower = cargo.toLowerCase()
+  
+  const mapeamento = {
+    'head-admin': 'Head-Admin',
+    'admin': 'Admin',
+    'editor': 'Editor',
+    'visualizar': 'Visualizar',
+    'visualizador': 'Visualizar',
+    'user': 'User'
+  }
+  
+  return mapeamento[cargoLower] || (cargo.charAt(0).toUpperCase() + cargo.slice(1))
+}
+
+function formatarPermissao(permissao) {
+  return formatarCargo(permissao)
 }

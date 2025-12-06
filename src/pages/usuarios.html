@@ -42,6 +42,10 @@
                     <i class="fas fa-user-tie"></i>
                     <span>Gerenciar Usuários</span>
                 </a>
+                <a href="logs.html" class="nav-item">
+                    <i class="fas fa-history"></i>
+                    <span>Logs</span>
+                </a>
             </div>
             <div class="nav-divider"></div>
             <a href="#" class="nav-item" id="logoutBtn">
@@ -62,7 +66,7 @@
             <div class="header-right">
                 <div class="user-info">
                     <span id="userName">Administrador</span>
-                    <span class="user-role">Admin</span>
+                    <span id="userRole" class="user-role">Admin</span>
                 </div>
                 <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='50%25' fill='%23FFD700'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23000' font-size='20' font-family='Arial'%3EU%3C/text%3E%3C/svg%3E" alt="Avatar" class="avatar">
             </div>
@@ -120,9 +124,10 @@
                     <input type="text" id="searchUsuarios" placeholder="Buscar por nome ou email..." class="search-input">
                     <select id="filterPermissao" class="select-input">
                         <option value="">Todas as permissões</option>
-                        <option value="admin">Administrador</option>
+                        <option value="head-admin">Head-Admin</option>
+                        <option value="admin">Admin</option>
                         <option value="editor">Editor</option>
-                        <option value="visualizador">Visualizador</option>
+                        <option value="visualizar">Visualizar</option>
                     </select>
                     <select id="filterStatus" class="select-input">
                         <option value="">Todos os status</option>
@@ -198,9 +203,10 @@
                         <label for="usuarioPermissao">Nível de Permissão *</label>
                         <select id="usuarioPermissao" required>
                             <option value="">Selecione</option>
-                            <option value="admin">Administrador - Acesso total</option>
+                            <option value="head-admin">Head-Admin - Gerencia admins + Acesso total</option>
+                            <option value="admin">Admin - Acesso total</option>
                             <option value="editor">Editor - Criar e editar</option>
-                            <option value="visualizador">Visualizador - Apenas visualizar</option>
+                            <option value="visualizar">Visualizar - Apenas visualizar</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -355,6 +361,7 @@
     <div id="toastNotification" class="toast"></div>
 
     <script src="../scripts/utils/permissions.js"></script>
+    <script src="../scripts/utils/logs.js"></script>
     <script src="../scripts/utils/usuarios.js"></script>
 </body>
 </html>

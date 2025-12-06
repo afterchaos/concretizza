@@ -26,13 +26,13 @@ function carregarDadosUsuario() {
     }
 
     if (userRoleElement) {
-      const cargo = usuarioLogado.cargo || usuarioLogado.role || "User"
-      userRoleElement.textContent = cargo.charAt(0).toUpperCase() + cargo.slice(1)
+      userRoleElement.textContent = formatarCargo(usuarioLogado.cargo)
     }
 
     const adminSection = document.getElementById("adminSection")
     if (adminSection) {
-      if (usuarioLogado.cargo && usuarioLogado.cargo.toLowerCase() === "admin") {
+      const cargo = usuarioLogado.cargo?.toLowerCase()
+      if (cargo === "admin" || cargo === "head-admin") {
         adminSection.style.display = "block"
       } else {
         adminSection.style.display = "none"

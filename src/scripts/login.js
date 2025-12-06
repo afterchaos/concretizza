@@ -106,6 +106,7 @@ function handleSubmit(event) {
   console.log("[v0] Password digitado:", password)
 
   const defaultUsers = [
+    { id: "default_head", username: "head", senha: "123", nome: "Head Admin", cargo: "head-admin" },
     { id: "default_admin", username: "admin", senha: "123", nome: "Administrador", cargo: "admin" },
     { id: "default_editor", username: "editor", senha: "123", nome: "Editor", cargo: "editor" },
     { id: "default_viewer", username: "viewer", senha: "123", nome: "Visualizador", cargo: "visualizar" },
@@ -114,7 +115,8 @@ function handleSubmit(event) {
   const usuariosDoStorage = JSON.parse(localStorage.getItem("usuarios")) || []
   const usuariosCadastrados = usuariosDoStorage.map((u) => {
     let cargo = u.permissao || u.cargo || "visualizar"
-    if (cargo.toLowerCase() === "admin") cargo = "admin"
+    if (cargo.toLowerCase() === "head-admin") cargo = "head-admin"
+    else if (cargo.toLowerCase() === "admin") cargo = "admin"
     else if (cargo.toLowerCase() === "editor") cargo = "editor"
     else if (cargo.toLowerCase() === "user") cargo = "editor"
     else cargo = "visualizar"

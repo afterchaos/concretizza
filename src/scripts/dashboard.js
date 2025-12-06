@@ -28,13 +28,14 @@ function carregarDadosUsuario() {
     }
 
     if (userRoleElement) {
-      userRoleElement.textContent = usuarioLogado.cargo || "User"
+      userRoleElement.textContent = formatarCargo(usuarioLogado.cargo)
     }
 
     console.log("[v0] Cargo do usuário:", usuarioLogado.cargo)
     const adminSection = document.getElementById("adminSection")
     if (adminSection) {
-      if (usuarioLogado.cargo && usuarioLogado.cargo.toLowerCase() === "admin") {
+      const cargo = usuarioLogado.cargo?.toLowerCase()
+      if (cargo === "admin" || cargo === "head-admin") {
         adminSection.style.display = "block"
         console.log("[v0] Seção admin exibida")
       } else {

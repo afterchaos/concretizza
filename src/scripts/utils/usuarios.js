@@ -11,6 +11,7 @@ const API_URL = window.location.hostname === "localhost" ? "http://localhost:300
 
 document.addEventListener("DOMContentLoaded", () => {
   verificarAutenticacaoUsuarios()
+  carregarDadosUsuario()
   carregarUsuariosDoServidor()
   configurarEventos()
   atualizarEstatisticas()
@@ -19,8 +20,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
 function verificarAutenticacaoUsuarios() {
   const usuario = obterUsuarioLogado()
-  if (!usuario || !isAdmin()) {
+  if (!usuario || !isAdminOrHeadAdmin()) {
     window.location.href = 'dashboard.html'
+  }
+}
+
+function carregarDadosUsuario() {
+  const usuarioLogado = obterUsuarioLogado()
+
+  if (usuarioLogado) {
+    const userNameElement = document.getElementById("userName")
+    const userRoleElement = document.getElementById("userRole")
+
+    if (userNameElement) {
+      userNameElement.textContent = usuarioLogado.nome || usuarioLogado.username
+    }
+
+    if (userRoleElement) {
+      userRoleElement.textContent = formatarCargo(usuarioLogado.cargo)
+    }
   }
 }
 
@@ -29,7 +47,7 @@ function aplicarPermissoesUsuarios() {
   const btnNovoUsuario = document.getElementById('btnNovoUsuario')
   
   if (btnNovoUsuario) {
-    btnNovoUsuario.style.display = isAdmin() ? 'flex' : 'none'
+    btnNovoUsuario.style.display = isAdminOrHeadAdmin() ? 'flex' : 'none'
   }
 }
 
@@ -269,8 +287,9 @@ function confirmarExclusao() {
 async function salvarUsuario(e) {
   e.preventDefault()
 
-  if (!isAdmin()) {
+  if (!isAdminOrHeadAdmin()) {
     mostrarToast("Apenas administradores podem gerenciar usuários", "error")
+    registrarLog("TENTATIVA_CRIAR_USUARIO", "usuarios", "Tentativa não autorizada de criar usuário")
     return
   }
 
@@ -304,10 +323,12 @@ async function salvarUsuario(e) {
 
       if (response && response.ok) {
         mostrarToast("Usuário atualizado com sucesso!", "success")
+        registrarLog("EDITAR", "usuarios", `Usuário atualizado: ${usuarioData.nome} (${usuarioData.permissao})`, usuarioData.nome)
       } else {
         usuarios = usuarios.map((u) => (u.id === editandoUsuarioId ? usuarioData : u))
         localStorage.setItem("usuarios", JSON.stringify(usuarios))
         mostrarToast("Usuário atualizado localmente!", "success")
+        registrarLog("EDITAR", "usuarios", `Usuário atualizado localmente: ${usuarioData.nome} (${usuarioData.permissao})`, usuarioData.nome)
       }
     } else {
       console.log("[v0] Criando novo usuário:", usuarioData)
@@ -321,10 +342,12 @@ async function salvarUsuario(e) {
         const novoUsuario = await response.json()
         usuarios.push(novoUsuario)
         mostrarToast("Usuário cadastrado com sucesso!", "success")
+        registrarLog("CRIAR", "usuarios", `Novo usuário criado: ${usuarioData.nome} (${usuarioData.permissao})`, usuarioData.nome)
       } else {
         usuarios.push(usuarioData)
         localStorage.setItem("usuarios", JSON.stringify(usuarios))
         mostrarToast("Usuário cadastrado localmente!", "success")
+        registrarLog("CRIAR", "usuarios", `Novo usuário criado localmente: ${usuarioData.nome} (${usuarioData.permissao})`, usuarioData.nome)
       }
     }
 
@@ -334,12 +357,50 @@ async function salvarUsuario(e) {
   } catch (error) {
     console.error("[v0] Erro ao salvar usuário:", error)
     mostrarToast("Erro ao salvar usuário", "error")
+    registrarLog("ERRO", "usuarios", `Erro ao salvar usuário: ${error.message}`)
   }
 }
 
 async function executarExclusao(id) {
-  if (!isAdmin()) {
+  const usuarioLogado = obterUsuarioLogado()
+  const usuarioADeletar = usuarios.find(u => u.id === id)
+
+  if (!usuarioADeletar) {
+    mostrarToast("Usuário não encontrado", "error")
+    return
+  }
+
+  if (!isAdminOrHeadAdmin()) {
     mostrarToast("Apenas administradores podem deletar usuários", "error")
+    registrarLog("TENTATIVA_DELETAR", "usuarios", `Tentativa não autorizada de deletar ${usuarioADeletar.nome}`, usuarioADeletar.nome)
+    return
+  }
+
+  if (usuarioLogado.id === id) {
+    mostrarToast("Você não pode deletar sua própria conta", "error")
+    registrarLog("TENTATIVA_SELF_DELETE", "usuarios", `Tentativa de auto-exclusão bloqueada`, usuarioADeletar.nome)
+    return
+  }
+
+  const usuarioADeletarEhAdmin = usuarioADeletar.permissao === "admin" || usuarioADeletar.permissao === "head-admin"
+  
+  if (usuarioADeletarEhAdmin && !isHeadAdmin()) {
+    mostrarToast("Apenas Head Admin pode deletar administradores", "error")
+    registrarLog("TENTATIVA_DELETAR_ADMIN", "usuarios", `Admin tentou deletar outro admin: ${usuarioADeletar.nome}`, usuarioADeletar.nome)
+    return
+  }
+
+  const senhaConfirmacao = prompt("⚠️ Confirmação em 2 passos!\n\nDigite sua senha para confirmar a exclusão:")
+  if (!senhaConfirmacao) {
+    return
+  }
+
+  const usuariosStorage = JSON.parse(localStorage.getItem("usuarios")) || []
+  const usuarioLogadoStorage = usuariosStorage.find(u => u.id === usuarioLogado.id)
+
+  if (!usuarioLogadoStorage || usuarioLogadoStorage.senha !== senhaConfirmacao) {
+    mostrarToast("Senha incorreta! Exclusão cancelada", "error")
+    registrarLog("FALHA_AUTENTICACAO_DELETE", "usuarios", `Falha ao deletar ${usuarioADeletar.nome} - senha incorreta`, usuarioADeletar.nome)
     return
   }
 
@@ -353,6 +414,7 @@ async function executarExclusao(id) {
       if (response.ok) {
         usuariosSelecionados = usuariosSelecionados.filter((uId) => uId !== id)
         mostrarToast("Usuário excluído com sucesso!", "success")
+        registrarLog("DELETAR", "usuarios", `Usuário deletado: ${usuarioADeletar.nome}`, usuarioADeletar.nome)
         await carregarUsuariosDoServidor()
         return
       }
@@ -365,11 +427,13 @@ async function executarExclusao(id) {
       localStorage.setItem("usuarios", JSON.stringify(usuarios))
       usuariosSelecionados = usuariosSelecionados.filter((uId) => uId !== id)
       mostrarToast("Usuário excluído com sucesso!", "success")
+      registrarLog("DELETAR", "usuarios", `Usuário deletado: ${usuarioADeletar.nome}`, usuarioADeletar.nome)
       await carregarUsuariosDoServidor()
     }
   } catch (error) {
     console.error("[v0] Erro ao excluir usuário:", error)
     mostrarToast("Erro ao excluir usuário", "error")
+    registrarLog("ERRO_DELETE", "usuarios", `Erro ao deletar ${usuarioADeletar.nome}: ${error.message}`, usuarioADeletar.nome)
   }
 }
 
@@ -491,20 +555,12 @@ function filtrarUsuarios() {
 // ===== ESTATÍSTICAS =====
 function atualizarEstatisticas() {
   document.getElementById("totalUsuarios").textContent = usuarios.length
-  document.getElementById("totalAdmins").textContent = usuarios.filter((u) => u.permissao === "admin").length
+  document.getElementById("totalAdmins").textContent = usuarios.filter((u) => u.permissao === "admin" || u.permissao === "head-admin").length
   document.getElementById("totalEditores").textContent = usuarios.filter((u) => u.permissao === "editor").length
   document.getElementById("usuariosAtivos").textContent = usuarios.filter((u) => u.status === "ativo").length
 }
 
 // ===== UTILITÁRIOS =====
-function formatarPermissao(permissao) {
-  const permissaoMap = {
-    admin: "Administrador",
-    editor: "Editor",
-    visualizador: "Visualizador",
-  }
-  return permissaoMap[permissao] || permissao
-}
 
 function formatarStatus(status) {
   const statusMap = {
@@ -576,15 +632,25 @@ function abrirModalDetalhes(id) {
 
 function getPermissoesPorNivel(permissao) {
   const permissoes = {
-    admin: [
+    "head-admin": [
       "Visualizar dados",
       "Criar registros",
       "Editar registros",
       "Excluir registros",
       "Gerenciar usuários",
+      "Gerenciar administradores",
+      "Visualizar logs",
       "Configurações do sistema",
     ],
+    admin: [
+      "Visualizar dados",
+      "Criar registros",
+      "Editar registros",
+      "Excluir registros",
+      "Visualizar logs",
+    ],
     editor: ["Visualizar dados", "Criar registros", "Editar registros"],
+    visualizar: ["Visualizar dados"],
     visualizador: ["Visualizar dados"],
   }
   return permissoes[permissao] || []
