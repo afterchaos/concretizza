@@ -1,315 +1,104 @@
-// ===== DADOS =====
-let usuarios = JSON.parse(localStorage.getItem("usuarios")) || [
-  {
-    id: 1,
-    nome: "Admin Sistema",
-    email: "admin@concretizza.com",
-    senha: "admin123",
-    permissao: "admin",
-    status: "ativo",
-    telefone: "(11) 98765-4321",
-    departamento: "Administração",
-    ultimoAcesso: "2024-01-20",
-  },
-  {
-    id: 2,
-    nome: "Maria Silva",
-    email: "maria.silva@concretizza.com",
-    senha: "maria123",
-    permissao: "editor",
-    status: "ativo",
-    telefone: "(11) 91234-5678",
-    departamento: "Vendas",
-    ultimoAcesso: "2024-01-19",
-  },
-  {
-    id: 3,
-    nome: "João Santos",
-    email: "joao.santos@concretizza.com",
-    senha: "joao123",
-    permissao: "visualizador",
-    status: "inativo",
-    telefone: "(11) 99876-5432",
-    departamento: "Atendimento",
-    ultimoAcesso: "2024-01-15",
-  },
-]
-
-let editandoUsuarioId = null
+let usuarios = []
+let usuariosFiltrados = []
 let paginaAtual = 1
 const itensPorPagina = 10
+let usuarioEmEdicao = null
 let usuariosSelecionados = []
-let excluindoUsuarioId = null
-let excluindoEmMassa = false
 
-// ===== INICIALIZAÇÃO =====
 document.addEventListener("DOMContentLoaded", () => {
-  carregarDados()
+  verificarAutenticacao()
+  carregarDadosUsuario()
+  carregarUsuarios()
   configurarEventos()
-  atualizarTabela()
-  atualizarEstatisticas()
+  aplicarPermissoes()
 })
 
-function configurarEventos() {
-  // Sidebar toggle
-  const sidebarToggle = document.getElementById("sidebarToggleMobile")
-  const sidebarToggleMobile = document.getElementById("sidebarToggle")
-  const sidebar = document.querySelector(".sidebar")
+function verificarAutenticacao() {
+  console.log("[USUARIOS] ========== INICIANDO VERIFICAÇÃO DE AUTENTICAÇÃO ==========")
+  const token = localStorage.getItem("token")
+  const usuarioStr = localStorage.getItem("usuarioLogado")
+  const usuario = usuarioStr ? JSON.parse(usuarioStr) : null
+  
+  console.log("[USUARIOS] Token existe:", !!token)
+  console.log("[USUARIOS] Token valor:", token)
+  console.log("[USUARIOS] Usuário:", usuario)
+  console.log("[USUARIOS] Cargo:", usuario?.cargo)
+  console.log("[USUARIOS] typeof isAdminOrHeadAdmin:", typeof isAdminOrHeadAdmin)
+  
+  if (typeof isAdminOrHeadAdmin !== 'function') {
+    console.error("[USUARIOS] ERRO CRÍTICO: isAdminOrHeadAdmin não é uma função!")
+    console.log("[USUARIOS] Redirecionando para / devido a erro")
+    window.location.href = "/"
+    return
+  }
+  
+  console.log("[USUARIOS] Chamando isAdminOrHeadAdmin()...")
+  const ehAdminOrHeadAdmin = isAdminOrHeadAdmin()
+  console.log("[USUARIOS] isAdminOrHeadAdmin() retornou:", ehAdminOrHeadAdmin)
+  
+  const condicoes = {
+    'token existe': !!token,
+    'usuario existe': !!usuario,
+    'ehAdminOrHeadAdmin': ehAdminOrHeadAdmin
+  }
+  console.log("[USUARIOS] Verificação de condições:", condicoes)
+  
+  if (!token || !usuario || !ehAdminOrHeadAdmin) {
+    console.log("[USUARIOS] ❌ FALHA NA VERIFICAÇÃO - redirecionando para /")
+    window.location.href = "/"
+    return
+  }
+  
+  console.log("[USUARIOS] ✅ AUTENTICAÇÃO BEM-SUCEDIDA")
+}
 
-  sidebarToggle?.addEventListener("click", () => {
-    sidebar.classList.toggle("active")
-  })
+function carregarDadosUsuario() {
+  const usuarioLogado = JSON.parse(localStorage.getItem("usuarioLogado"))
 
-  sidebarToggleMobile?.addEventListener("click", () => {
-    sidebar.classList.remove("active")
-  })
+  if (usuarioLogado) {
+    const userNameElement = document.getElementById("userName")
+    const userRoleElement = document.getElementById("userRole")
 
-  // Modal
+    if (userNameElement) {
+      userNameElement.textContent = usuarioLogado.nome || usuarioLogado.username
+    }
+
+    if (userRoleElement) {
+      userRoleElement.textContent = formatarCargo(usuarioLogado.cargo)
+    }
+  }
+}
+
+function aplicarPermissoes() {
   const btnNovoUsuario = document.getElementById("btnNovoUsuario")
-  const modal = document.getElementById("modalUsuario")
-  const closeModal = document.getElementById("closeModal")
-  const closeBtns = document.querySelectorAll(".modal-close-btn")
-  const formUsuario = document.getElementById("formUsuario")
 
-  btnNovoUsuario.addEventListener("click", abrirModalNovo)
-  closeModal.addEventListener("click", fecharModal)
-  closeBtns.forEach((btn) => btn.addEventListener("click", fecharModal))
-
-  modal.addEventListener("click", (e) => {
-    if (e.target === modal) fecharModal()
-  })
-
-  const modalDetalhes = document.getElementById("modalDetalhesUsuario")
-  const closeDetailsModal = document.getElementById("closeDetailsModal")
-  const btnFecharDetalhes = document.getElementById("btnFecharDetalhes")
-  const btnEditarDetalhes = document.getElementById("btnEditarDetalhes")
-
-  closeDetailsModal.addEventListener("click", fecharModalDetalhes)
-  btnFecharDetalhes.addEventListener("click", fecharModalDetalhes)
-
-  btnEditarDetalhes.addEventListener("click", () => {
-    const usuarioId = btnEditarDetalhes.dataset.usuarioId
-    if (usuarioId) {
-      fecharModalDetalhes()
-      abrirModalEditar(Number.parseInt(usuarioId))
-    }
-  })
-
-  modalDetalhes.addEventListener("click", (e) => {
-    if (e.target === modalDetalhes) fecharModalDetalhes()
-  })
-
-  // Confirmation modal events
-  const modalConfirmacao = document.getElementById("modalConfirmacao")
-  const closeConfirmacao = document.getElementById("closeConfirmacao")
-  const btnCancelarExclusao = document.getElementById("btnCancelarExclusao")
-  const btnConfirmarExclusao = document.getElementById("btnConfirmarExclusao")
-
-  closeConfirmacao.addEventListener("click", fecharModalConfirmacao)
-  btnCancelarExclusao.addEventListener("click", fecharModalConfirmacao)
-  btnConfirmarExclusao.addEventListener("click", confirmarExclusao)
-
-  modalConfirmacao.addEventListener("click", (e) => {
-    if (e.target === modalConfirmacao) fecharModalConfirmacao()
-  })
-
-  // Select all checkbox event
-  document.getElementById("selectAll").addEventListener("change", (e) => {
-    const checkboxes = document.querySelectorAll(".checkbox-usuario")
-    checkboxes.forEach((checkbox) => {
-      checkbox.checked = e.target.checked
-      const usuarioId = Number.parseInt(checkbox.dataset.usuarioId)
-      if (e.target.checked) {
-        if (!usuariosSelecionados.includes(usuarioId)) {
-          usuariosSelecionados.push(usuarioId)
-        }
-      } else {
-        usuariosSelecionados = usuariosSelecionados.filter((id) => id !== usuarioId)
-      }
-      const row = checkbox.closest("tr")
-      if (row) {
-        row.classList.toggle("selected", e.target.checked)
-      }
-    })
-    atualizarBulkActions()
-  })
-
-  // Bulk delete button event
-  document.getElementById("btnExcluirSelecionados").addEventListener("click", () => {
-    if (usuariosSelecionados.length > 0) {
-      abrirModalConfirmacao(null, true)
-    }
-  })
-
-  // Form submit
-  formUsuario.addEventListener("submit", salvarUsuario)
-
-  // Filtros
-  document.getElementById("searchUsuarios").addEventListener("input", filtrarUsuarios)
-  document.getElementById("filterPermissao").addEventListener("change", filtrarUsuarios)
-  document.getElementById("filterStatus").addEventListener("change", filtrarUsuarios)
-
-  // Paginação
-  document.getElementById("prevPage").addEventListener("click", () => {
-    if (paginaAtual > 1) {
-      paginaAtual--
-      atualizarTabela()
-    }
-  })
-
-  document.getElementById("nextPage").addEventListener("click", () => {
-    const usuariosFiltrados = obterUsuariosFiltrados()
-    const totalPaginas = Math.ceil(usuariosFiltrados.length / itensPorPagina)
-    if (paginaAtual < totalPaginas) {
-      paginaAtual++
-      atualizarTabela()
-    }
-  })
-
-  // Logout
-  document.getElementById("logoutBtn")?.addEventListener("click", (e) => {
-    e.preventDefault()
-    if (confirm("Deseja realmente sair?")) {
-      window.location.href = "index.html"
-    }
-  })
-}
-
-// ===== MODAL =====
-function abrirModalNovo() {
-  editandoUsuarioId = null
-  document.getElementById("modalTitle").textContent = "Novo Usuário"
-  document.getElementById("formUsuario").reset()
-  document.getElementById("usuarioSenha").required = true
-  document.getElementById("modalUsuario").classList.add("show")
-}
-
-function abrirModalEditar(id) {
-  editandoUsuarioId = id
-  const usuario = usuarios.find((u) => u.id === id)
-
-  if (usuario) {
-    document.getElementById("modalTitle").textContent = "Editar Usuário"
-    document.getElementById("usuarioNome").value = usuario.nome
-    document.getElementById("usuarioEmail").value = usuario.email
-    document.getElementById("usuarioSenha").value = ""
-    document.getElementById("usuarioSenha").required = false
-    document.getElementById("usuarioPermissao").value = usuario.permissao
-    document.getElementById("usuarioStatus").value = usuario.status
-    document.getElementById("usuarioTelefone").value = usuario.telefone || ""
-    document.getElementById("usuarioDepartamento").value = usuario.departamento || ""
-    document.getElementById("modalUsuario").classList.add("show")
+  if (btnNovoUsuario) {
+    btnNovoUsuario.style.display = isAdminOrHeadAdmin() ? "flex" : "none"
   }
 }
 
-function fecharModal() {
-  document.getElementById("modalUsuario").classList.remove("show")
-  document.getElementById("formUsuario").reset()
-  editandoUsuarioId = null
-}
-
-function abrirModalConfirmacao(usuarioId = null, emMassa = false) {
-  excluindoUsuarioId = usuarioId
-  excluindoEmMassa = emMassa
-
-  const messageElement = document.getElementById("confirmationMessage")
-
-  if (emMassa) {
-    const qtd = usuariosSelecionados.length
-    messageElement.textContent = `Tem certeza que deseja excluir ${qtd} usuário${qtd > 1 ? "s" : ""}?`
-  } else {
-    messageElement.textContent = "Tem certeza que deseja excluir este usuário?"
+async function carregarUsuarios() {
+  try {
+    console.log("Iniciando carregamento de usuários...")
+    const token = localStorage.getItem("token")
+    console.log("Token presente:", !!token)
+    usuarios = await obterUsuarios()
+    console.log("Usuários carregados:", usuarios)
+    usuariosFiltrados = [...usuarios]
+    paginaAtual = 1
+    atualizarTabela()
+  } catch (error) {
+    console.error("Erro ao carregar usuários:", error)
+    mostrarNotificacao("Erro ao carregar usuários: " + error.message, "erro")
   }
-
-  document.getElementById("modalConfirmacao").classList.add("show")
 }
 
-function fecharModalConfirmacao() {
-  document.getElementById("modalConfirmacao").classList.remove("show")
-  excluindoUsuarioId = null
-  excluindoEmMassa = false
-}
-
-function confirmarExclusao() {
-  if (excluindoEmMassa) {
-    excluirUsuariosSelecionados()
-  } else if (excluindoUsuarioId) {
-    executarExclusao(excluindoUsuarioId)
-  }
-  fecharModalConfirmacao()
-}
-
-// ===== CRUD =====
-function salvarUsuario(e) {
-  e.preventDefault()
-
-  const usuario = {
-    id: editandoUsuarioId || Date.now(),
-    nome: document.getElementById("usuarioNome").value,
-    email: document.getElementById("usuarioEmail").value,
-    permissao: document.getElementById("usuarioPermissao").value,
-    status: document.getElementById("usuarioStatus").value,
-    telefone: document.getElementById("usuarioTelefone").value,
-    departamento: document.getElementById("usuarioDepartamento").value,
-    ultimoAcesso: editandoUsuarioId
-      ? usuarios.find((u) => u.id === editandoUsuarioId).ultimoAcesso
-      : new Date().toISOString().split("T")[0],
-  }
-
-  // Adicionar senha apenas se foi fornecida
-  const senha = document.getElementById("usuarioSenha").value
-  if (senha) {
-    usuario.senha = senha
-  } else if (editandoUsuarioId) {
-    usuario.senha = usuarios.find((u) => u.id === editandoUsuarioId).senha
-  }
-
-  if (editandoUsuarioId) {
-    const index = usuarios.findIndex((u) => u.id === editandoUsuarioId)
-    usuarios[index] = usuario
-    mostrarToast("Usuário atualizado com sucesso!", "success")
-  } else {
-    usuarios.push(usuario)
-    mostrarToast("Usuário cadastrado com sucesso!", "success")
-  }
-
-  salvarDados()
-  fecharModal()
-  atualizarTabela()
-  atualizarEstatisticas()
-}
-
-function excluirUsuario(id) {
-  abrirModalConfirmacao(id, false)
-}
-
-function executarExclusao(id) {
-  usuarios = usuarios.filter((u) => u.id !== id)
-  usuariosSelecionados = usuariosSelecionados.filter((uId) => uId !== id)
-  salvarDados()
-  atualizarTabela()
-  atualizarEstatisticas()
-  atualizarBulkActions()
-  mostrarToast("Usuário excluído com sucesso!", "success")
-}
-
-function excluirUsuariosSelecionados() {
-  const qtd = usuariosSelecionados.length
-  usuarios = usuarios.filter((u) => !usuariosSelecionados.includes(u.id))
-  usuariosSelecionados = []
-  salvarDados()
-  atualizarTabela()
-  atualizarEstatisticas()
-  atualizarBulkActions()
-  mostrarToast(`${qtd} usuário${qtd > 1 ? "s excluídos" : " excluído"} com sucesso!`, "success")
-}
-
-// ===== TABELA =====
 function atualizarTabela() {
   const tbody = document.getElementById("usuariosTable")
-  const usuariosFiltrados = obterUsuariosFiltrados()
+  const usuario = obterUsuarioLogado()
+  const cargoLogado = usuario?.cargo?.toLowerCase()
+  const podeEditar = usuario && (cargoLogado === "head-admin" || cargoLogado === "admin")
 
-  // Paginação
   const inicio = (paginaAtual - 1) * itensPorPagina
   const fim = inicio + itensPorPagina
   const usuariosPagina = usuariosFiltrados.slice(inicio, fim)
@@ -318,223 +107,529 @@ function atualizarTabela() {
     tbody.innerHTML = '<tr><td colspan="7" class="text-center">Nenhum usuário encontrado</td></tr>'
   } else {
     tbody.innerHTML = usuariosPagina
-      .map(
-        (usuario) => `
-      <tr style="cursor: pointer;" class="${usuariosSelecionados.includes(usuario.id) ? "selected" : ""}">
-        <td onclick="event.stopPropagation()">
-          <input type="checkbox" 
-                 class="checkbox-input checkbox-usuario" 
-                 data-usuario-id="${usuario.id}"
-                 ${usuariosSelecionados.includes(usuario.id) ? "checked" : ""}
-                 onchange="toggleUsuarioSelecao(${usuario.id}, this.checked)">
-        </td>
-        <td onclick="abrirModalDetalhes(${usuario.id})">${usuario.nome}</td>
-        <td onclick="abrirModalDetalhes(${usuario.id})">${usuario.email}</td>
-        <td onclick="abrirModalDetalhes(${usuario.id})"><span class="badge badge-${usuario.permissao}">${formatarPermissao(usuario.permissao)}</span></td>
-        <td onclick="abrirModalDetalhes(${usuario.id})"><span class="badge badge-${usuario.status}">${formatarStatus(usuario.status)}</span></td>
-        <td onclick="abrirModalDetalhes(${usuario.id})">${formatarData(usuario.ultimoAcesso)}</td>
-        <td onclick="event.stopPropagation()">
-          <button class="btn-action btn-edit" onclick="abrirModalEditar(${usuario.id})">
-            <i class="fas fa-edit"></i> Editar
-          </button>
-          <button class="btn-action btn-delete" onclick="excluirUsuario(${usuario.id})">
-            <i class="fas fa-trash"></i> Excluir
-          </button>
-        </td>
-      </tr>
-    `,
-      )
+      .map((usr) => {
+        const status = usr.status || "ativo"
+        const ultimoAcesso = usr.ultimo_acesso ? new Date(usr.ultimo_acesso).toLocaleDateString("pt-BR") : "-"
+        const cargoAlvo = usr.permissao?.toLowerCase()
+        const podeEditarEste = cargoLogado === "head-admin" || (cargoLogado === "admin" && cargoAlvo !== "admin" && cargoAlvo !== "head-admin")
+        const podeDeletarEste = cargoLogado === "head-admin" || (cargoLogado === "admin" && cargoAlvo !== "admin" && cargoAlvo !== "head-admin")
+        
+        return `
+          <tr onclick="abrirDetalhesUsuario(${usr.id})" style="cursor: pointer;">
+            <td onclick="event.stopPropagation();">
+              <input type="checkbox" class="checkbox-input usuario-checkbox" data-id="${usr.id}">
+            </td>
+            <td>${usr.nome}</td>
+            <td>${usr.email}</td>
+            <td><span class="badge badge-info">${formatarCargo(usr.permissao)}</span></td>
+            <td><span class="badge ${status === 'ativo' ? 'badge-success' : 'badge-warning'}">${status === 'ativo' ? 'Ativo' : 'Inativo'}</span></td>
+            <td>${ultimoAcesso}</td>
+            <td onclick="event.stopPropagation();">
+              ${podeEditar && podeEditarEste ? `<button class="btn-action btn-edit" onclick="editarUsuario(${usr.id})" title="Editar">
+                <i class="fas fa-edit"></i> Editar
+              </button>` : ""}
+              ${podeEditar && podeDeletarEste && usr.id !== usuario.id ? `<button class="btn-action btn-delete" onclick="confirmarExclusao(${usr.id}, '${usr.nome}')" title="Excluir">
+                <i class="fas fa-trash"></i> Excluir
+              </button>` : ""}
+            </td>
+          </tr>
+        `
+      })
       .join("")
   }
 
-  atualizarPaginacao(usuariosFiltrados.length)
-  atualizarBulkActions()
+  atualizarPaginacao()
+  atualizarEstatisticas()
+  adicionarListenersCheckboxesUsuarios()
 }
 
-function atualizarPaginacao(totalItens) {
-  const totalPaginas = Math.ceil(totalItens / itensPorPagina)
-  document.getElementById("pageInfo").textContent = `Página ${paginaAtual} de ${totalPaginas || 1}`
-
-  document.getElementById("prevPage").disabled = paginaAtual === 1
-  document.getElementById("nextPage").disabled = paginaAtual >= totalPaginas
+function atualizarPaginacao() {
+  const totalPaginas = Math.ceil(usuariosFiltrados.length / itensPorPagina)
+  const pageInfo = document.getElementById("pageInfo")
+  if (pageInfo) {
+    pageInfo.textContent = `Página ${paginaAtual} de ${totalPaginas}`
+  }
 }
 
-// ===== FILTROS =====
-function obterUsuariosFiltrados() {
-  const busca = document.getElementById("searchUsuarios").value.toLowerCase()
-  const permissaoFiltro = document.getElementById("filterPermissao").value
-  const statusFiltro = document.getElementById("filterStatus").value
+function atualizarEstatisticas() {
+  const totalUsuarios = usuarios.length
+  const totalAdmins = usuarios.filter(u => u.permissao?.toLowerCase() === "admin" || u.permissao?.toLowerCase() === "head-admin").length
+  const totalEditores = usuarios.filter(u => u.permissao?.toLowerCase() === "editor").length
+  const usuariosAtivos = usuarios.filter(u => u.status?.toLowerCase() === "ativo").length
 
-  return usuarios.filter((usuario) => {
-    const matchBusca =
-      !busca || usuario.nome.toLowerCase().includes(busca) || usuario.email.toLowerCase().includes(busca)
+  const totalElem = document.getElementById("totalUsuarios")
+  const adminsElem = document.getElementById("totalAdmins")
+  const editoresElem = document.getElementById("totalEditores")
+  const ativosElem = document.getElementById("usuariosAtivos")
 
-    const matchPermissao = !permissaoFiltro || usuario.permissao === permissaoFiltro
-    const matchStatus = !statusFiltro || usuario.status === statusFiltro
-
-    return matchBusca && matchPermissao && matchStatus
-  })
+  if (totalElem) totalElem.textContent = totalUsuarios
+  if (adminsElem) adminsElem.textContent = totalAdmins
+  if (editoresElem) editoresElem.textContent = totalEditores
+  if (ativosElem) ativosElem.textContent = usuariosAtivos
 }
 
 function filtrarUsuarios() {
+  const search = document.getElementById("searchUsuarios")?.value.toLowerCase() || ""
+  const filterPermissao = document.getElementById("filterPermissao")?.value || ""
+  const filterStatus = document.getElementById("filterStatus")?.value || ""
+
+  usuariosFiltrados = usuarios.filter((usuario) => {
+    const matchSearch =
+      usuario.nome.toLowerCase().includes(search) ||
+      usuario.email.toLowerCase().includes(search)
+    const matchPermissao = !filterPermissao || usuario.permissao === filterPermissao
+    const matchStatus = !filterStatus || usuario.status === filterStatus
+
+    return matchSearch && matchPermissao && matchStatus
+  })
+
   paginaAtual = 1
   usuariosSelecionados = []
-  document.getElementById("selectAll").checked = false
+  const selectAll = document.getElementById("selectAll")
+  if (selectAll) {
+    selectAll.checked = false
+  }
   atualizarTabela()
 }
 
-// ===== ESTATÍSTICAS =====
-function atualizarEstatisticas() {
-  document.getElementById("totalUsuarios").textContent = usuarios.length
-  document.getElementById("totalAdmins").textContent = usuarios.filter((u) => u.permissao === "admin").length
-  document.getElementById("totalEditores").textContent = usuarios.filter((u) => u.permissao === "editor").length
-  document.getElementById("usuariosAtivos").textContent = usuarios.filter((u) => u.status === "ativo").length
-}
+function configurarEventos() {
+  const sidebarToggle = document.getElementById("sidebarToggleMobile")
+  const sidebar = document.querySelector(".sidebar")
 
-// ===== UTILITÁRIOS =====
-function formatarPermissao(permissao) {
-  const permissaoMap = {
-    admin: "Administrador",
-    editor: "Editor",
-    visualizador: "Visualizador",
+  if (sidebarToggle) {
+    sidebarToggle.addEventListener("click", () => {
+      sidebar.classList.toggle("active")
+    })
   }
-  return permissaoMap[permissao] || permissao
-}
 
-function formatarStatus(status) {
-  const statusMap = {
-    ativo: "Ativo",
-    inativo: "Inativo",
+  const logoutBtn = document.getElementById("logoutBtn")
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", (e) => {
+      e.preventDefault()
+      if (confirm("Deseja realmente sair?")) {
+        fazerLogout()
+      }
+    })
   }
-  return statusMap[status] || status
-}
 
-function formatarData(data) {
-  const [ano, mes, dia] = data.split("-")
-  return `${dia}/${mes}/${ano}`
-}
+  const btnNovoUsuario = document.getElementById("btnNovoUsuario")
+  if (btnNovoUsuario) {
+    btnNovoUsuario.addEventListener("click", () => {
+      usuarioEmEdicao = null
+      document.getElementById("formUsuario").reset()
+      document.getElementById("modalTitle").textContent = "Novo Usuário"
+      document.getElementById("usuarioPasswordGroup").style.display = "block"
+      document.getElementById("usuarioPassword").setAttribute("required", "required")
+      atualizarOpcoesCargo()
+      document.getElementById("modalUsuario").style.display = "flex"
+    })
+  }
 
-function mostrarToast(mensagem, tipo = "success") {
-  const toast = document.getElementById("toastNotification")
-  toast.textContent = mensagem
-  toast.className = `toast toast-${tipo} show`
+  const formUsuario = document.getElementById("formUsuario")
+  if (formUsuario) {
+    formUsuario.addEventListener("submit", (e) => {
+      e.preventDefault()
+      salvarUsuario()
+    })
+  }
 
-  setTimeout(() => {
-    toast.classList.remove("show")
-  }, 3000)
-}
+  const closeModal = document.querySelector("#modalUsuario .modal-close")
+  if (closeModal) {
+    closeModal.addEventListener("click", () => {
+      document.getElementById("modalUsuario").style.display = "none"
+    })
+  }
 
-function salvarDados() {
-  localStorage.setItem("usuarios", JSON.stringify(usuarios))
-}
+  const cancelBtns = document.querySelectorAll(".modal-close-btn")
+  cancelBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.getElementById("modalUsuario").style.display = "none"
+    })
+  })
 
-function carregarDados() {
-  const storedUsuarios = localStorage.getItem("usuarios")
-  if (storedUsuarios) {
-    usuarios = JSON.parse(storedUsuarios)
+  const closeDetailsModal = document.getElementById("closeDetailsModal")
+  if (closeDetailsModal) {
+    closeDetailsModal.addEventListener("click", () => {
+      document.getElementById("modalDetalhesUsuario").style.display = "none"
+    })
+  }
+
+  const btnEditarDetalhes = document.getElementById("btnEditarDetalhes")
+  if (btnEditarDetalhes) {
+    btnEditarDetalhes.addEventListener("click", () => {
+      const usuarioId = usuarios.find((u) => u.nome === document.getElementById("detailNomeHeader").textContent)?.id
+      if (usuarioId) {
+        document.getElementById("modalDetalhesUsuario").style.display = "none"
+        editarUsuario(usuarioId)
+      }
+    })
+  }
+
+  const btnFecharDetalhes = document.getElementById("btnFecharDetalhes")
+  if (btnFecharDetalhes) {
+    btnFecharDetalhes.addEventListener("click", () => {
+      document.getElementById("modalDetalhesUsuario").style.display = "none"
+    })
+  }
+
+  const closeConfirmModal = document.getElementById("closeConfirmacaoUsuario")
+  if (closeConfirmModal) {
+    closeConfirmModal.addEventListener("click", () => {
+      document.getElementById("modalConfirmacaoUsuario").style.display = "none"
+    })
+  }
+
+  const btnCancelarExclusao = document.getElementById("btnCancelarExclusaoUsuario")
+  if (btnCancelarExclusao) {
+    btnCancelarExclusao.addEventListener("click", () => {
+      document.getElementById("modalConfirmacaoUsuario").style.display = "none"
+    })
+  }
+
+  const selectAll = document.getElementById("selectAll")
+  if (selectAll) {
+    selectAll.addEventListener("change", (e) => {
+      const checkboxes = document.querySelectorAll(".usuario-checkbox")
+      checkboxes.forEach((checkbox) => {
+        checkbox.checked = e.target.checked
+      })
+      atualizarCheckboxesUsuarios()
+    })
+  }
+
+  const btnExcluirSelecionados = document.getElementById("btnExcluirSelecionados")
+  if (btnExcluirSelecionados) {
+    btnExcluirSelecionados.addEventListener("click", excluirSelecionadosUsuarios)
+  }
+
+  const searchUsuarios = document.getElementById("searchUsuarios")
+  const filterPermissao = document.getElementById("filterPermissao")
+  const filterStatus = document.getElementById("filterStatus")
+
+  if (searchUsuarios) {
+    searchUsuarios.addEventListener("input", filtrarUsuarios)
+  }
+  if (filterPermissao) {
+    filterPermissao.addEventListener("change", filtrarUsuarios)
+  }
+  if (filterStatus) {
+    filterStatus.addEventListener("change", filtrarUsuarios)
+  }
+
+  const prevPage = document.getElementById("prevPage")
+  const nextPage = document.getElementById("nextPage")
+
+  if (prevPage) {
+    prevPage.addEventListener("click", () => {
+      if (paginaAtual > 1) {
+        paginaAtual--
+        atualizarTabela()
+      }
+    })
+  }
+
+  if (nextPage) {
+    nextPage.addEventListener("click", () => {
+      const totalPaginas = Math.ceil(usuariosFiltrados.length / itensPorPagina)
+      if (paginaAtual < totalPaginas) {
+        paginaAtual++
+        atualizarTabela()
+      }
+    })
   }
 }
 
-function abrirModalDetalhes(id) {
-  const usuario = usuarios.find((u) => u.id === id)
+async function salvarUsuario() {
+  const nome = (document.getElementById("usuarioNome")?.value || "").trim()
+  const email = (document.getElementById("usuarioEmail")?.value || "").trim()
+  const username = (document.getElementById("usuarioUsername")?.value || "").trim()
+  const password = (document.getElementById("usuarioPassword")?.value || "").trim()
+  const permissao = document.getElementById("usuarioPermissao")?.value
+  const status = document.getElementById("usuarioStatus")?.value
+  const telefone = (document.getElementById("usuarioTelefone")?.value || "").trim()
+  const departamento = (document.getElementById("usuarioDepartamento")?.value || "").trim()
 
-  if (usuario) {
-    // Avatar
-    const iniciais = usuario.nome
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .substring(0, 2)
-      .toUpperCase()
-    document.getElementById("detailAvatar").textContent = iniciais
-
-    // Header
-    document.getElementById("detailNomeHeader").textContent = usuario.nome
-    const permissaoHeader = document.getElementById("detailPermissaoHeader")
-    permissaoHeader.textContent = formatarPermissao(usuario.permissao)
-    permissaoHeader.className = `badge badge-${usuario.permissao}`
-
-    // Details
-    document.getElementById("detailEmail").textContent = usuario.email
-    document.getElementById("detailTelefone").textContent = usuario.telefone || "Não informado"
-    document.getElementById("detailDepartamento").textContent = usuario.departamento || "Não informado"
-    document.getElementById("detailPermissao").textContent = formatarPermissao(usuario.permissao)
-
-    const statusElement = document.getElementById("detailStatus")
-    const statusText = formatarStatus(usuario.status)
-    statusElement.innerHTML = `<span class="badge badge-${usuario.status}">${statusText}</span>`
-
-    document.getElementById("detailUltimoAcesso").textContent = formatarData(usuario.ultimoAcesso)
-
-    // Permissions list
-    const permissoes = getPermissoesPorNivel(usuario.permissao)
-    const permissoesHtml = permissoes
-      .map((p) => `<span class="permission-tag"><i class="fas fa-check"></i>${p}</span>`)
-      .join("")
-    document.getElementById("detailPermissoes").innerHTML = permissoesHtml
-
-    document.getElementById("btnEditarDetalhes").dataset.usuarioId = id
-
-    document.getElementById("modalDetalhesUsuario").classList.add("show")
+  if (!nome || !email || !username || !permissao || !status) {
+    mostrarNotificacao("Preencha todos os campos obrigatórios", "aviso")
+    return
   }
-}
 
-function getPermissoesPorNivel(permissao) {
-  const permissoes = {
-    admin: [
-      "Visualizar dados",
-      "Criar registros",
-      "Editar registros",
-      "Excluir registros",
-      "Gerenciar usuários",
-      "Configurações do sistema",
-    ],
-    editor: ["Visualizar dados", "Criar registros", "Editar registros"],
-    visualizador: ["Visualizar dados"],
+  if (!usuarioEmEdicao && !password) {
+    mostrarNotificacao("Senha é obrigatória para novo usuário", "aviso")
+    return
   }
-  return permissoes[permissao] || []
-}
 
-function fecharModalDetalhes() {
-  document.getElementById("modalDetalhesUsuario").classList.remove("show")
-}
+  const usuarioLogado = obterUsuarioLogado()
+  const cargoLogado = usuarioLogado.cargo?.toLowerCase()
 
-function toggleUsuarioSelecao(usuarioId, checked) {
-  if (checked) {
-    if (!usuariosSelecionados.includes(usuarioId)) {
-      usuariosSelecionados.push(usuarioId)
+  if (usuarioEmEdicao) {
+    const usuarioASerEditado = usuarios.find(u => u.id === usuarioEmEdicao)
+    const cargoAlvo = usuarioASerEditado?.permissao?.toLowerCase()
+
+    if (cargoLogado === "admin" && (cargoAlvo === "admin" || cargoAlvo === "head-admin")) {
+      mostrarNotificacao("Admin não pode editar usuários com cargo igual ou superior", "aviso")
+      return
+    }
+
+    if (cargoLogado === "editor") {
+      mostrarNotificacao("Você não tem permissão para editar usuários", "aviso")
+      return
     }
   } else {
-    usuariosSelecionados = usuariosSelecionados.filter((id) => id !== usuarioId)
+    if (cargoLogado === "admin" && (permissao.toLowerCase() === "admin" || permissao.toLowerCase() === "head-admin")) {
+      mostrarNotificacao("Admin não pode criar usuários com cargo admin ou superior", "aviso")
+      return
+    }
+
+    if (cargoLogado === "editor") {
+      mostrarNotificacao("Você não tem permissão para criar usuários", "aviso")
+      return
+    }
   }
 
-  const row = document.querySelector(`input[data-usuario-id="${usuarioId}"]`).closest("tr")
-  if (row) {
-    row.classList.toggle("selected", checked)
-  }
+  try {
+    if (usuarioEmEdicao) {
+      const usuario = {
+        nome,
+        email,
+        username,
+        permissao,
+        status,
+        telefone: telefone || null,
+        departamento: departamento || null
+      }
 
-  atualizarBulkActions()
+      if (password) {
+        usuario.password = password
+      }
+
+      console.log("[USUARIOS] Atualizando usuário:", usuarioEmEdicao, usuario)
+      await atualizarUsuario(usuarioEmEdicao, usuario)
+      registrarLog("EDITAR", "USUARIOS", `Usuário "${nome}" (${permissao}) atualizado`)
+      mostrarNotificacao("Usuário atualizado com sucesso!", "sucesso")
+    } else {
+      const usuario = {
+        nome,
+        email,
+        username,
+        password,
+        permissao,
+        status,
+        telefone: telefone || null,
+        departamento: departamento || null
+      }
+
+      console.log("[USUARIOS] Criando novo usuário:", usuario)
+      await criarUsuario(usuario)
+      registrarLog("CRIAR", "USUARIOS", `Novo usuário "${nome}" (${permissao}) criado`)
+      mostrarNotificacao("Usuário criado com sucesso!", "sucesso")
+    }
+
+    document.getElementById("modalUsuario").style.display = "none"
+    await carregarUsuarios()
+  } catch (error) {
+    console.error("[USUARIOS] Erro ao salvar usuário:", error)
+    mostrarNotificacao("Erro ao salvar usuário: " + error.message, "erro")
+  }
 }
 
-function atualizarBulkActions() {
-  const bulkActions = document.getElementById("bulkActions")
-  const selectedCount = document.getElementById("selectedCount")
+function atualizarOpcoesCargo() {
+  const usuarioLogado = obterUsuarioLogado()
+  const cargoLogado = usuarioLogado?.cargo?.toLowerCase()
+  const selectCargo = document.getElementById("usuarioPermissao")
 
+  if (!selectCargo) return
+
+  const opcoes = selectCargo.querySelectorAll("option")
+  
+  opcoes.forEach(opcao => {
+    opcao.disabled = false
+  })
+
+  if (cargoLogado === "admin") {
+    opcoes.forEach(opcao => {
+      const valor = opcao.value.toLowerCase()
+      if (valor === "admin" || valor === "head-admin") {
+        opcao.disabled = true
+      }
+    })
+  } else if (cargoLogado === "editor") {
+    opcoes.forEach(opcao => {
+      if (opcao.value) opcao.disabled = true
+    })
+  }
+}
+
+function editarUsuario(id) {
+  const usuario = usuarios.find((u) => u.id === id)
+  if (!usuario) return
+
+  const usuarioLogado = obterUsuarioLogado()
+  const cargoLogado = usuarioLogado.cargo?.toLowerCase()
+  const cargoAlvo = usuario.permissao?.toLowerCase()
+
+  if (cargoLogado === "admin" && (cargoAlvo === "admin" || cargoAlvo === "head-admin")) {
+    mostrarNotificacao("Admin não pode editar usuários com cargo igual ou superior", "aviso")
+    return
+  }
+
+  usuarioEmEdicao = id
+  document.getElementById("modalTitle").textContent = "Editar Usuário"
+  document.getElementById("usuarioNome").value = usuario.nome
+  document.getElementById("usuarioEmail").value = usuario.email
+  document.getElementById("usuarioUsername").value = usuario.username
+  document.getElementById("usuarioPermissao").value = usuario.permissao
+  document.getElementById("usuarioStatus").value = usuario.status || "ativo"
+  document.getElementById("usuarioTelefone").value = usuario.telefone || ""
+  document.getElementById("usuarioDepartamento").value = usuario.departamento || ""
+  document.getElementById("usuarioPasswordGroup").style.display = "none"
+  document.getElementById("usuarioPassword").removeAttribute("required")
+
+  atualizarOpcoesCargo()
+  document.getElementById("modalUsuario").style.display = "flex"
+}
+
+function abrirDetalhesUsuario(id) {
+  const usr = usuarios.find((u) => u.id === id)
+  if (!usr) return
+
+  document.getElementById("detailAvatar").textContent = usr.nome.charAt(0).toUpperCase()
+  document.getElementById("detailNomeHeader").textContent = usr.nome
+  document.getElementById("detailPermissaoHeader").textContent = formatarCargo(usr.permissao)
+  document.getElementById("detailPermissaoHeader").className = "badge badge-info"
+  document.getElementById("detailEmail").textContent = usr.email
+  document.getElementById("detailTelefone").textContent = usr.telefone || "-"
+  document.getElementById("detailDepartamento").textContent = usr.departamento || "-"
+  document.getElementById("detailPermissao").textContent = formatarCargo(usr.permissao)
+  document.getElementById("detailStatus").textContent = usr.status === "ativo" ? "Ativo" : "Inativo"
+  document.getElementById("detailUltimoAcesso").textContent = usr.ultimoAcesso ? new Date(usr.ultimoAcesso).toLocaleDateString("pt-BR") : "-"
+
+  document.getElementById("modalDetalhesUsuario").style.display = "flex"
+}
+
+function confirmarExclusao(id, nome) {
+  document.getElementById("nomeUsuarioExcluir").textContent = nome
+  document.getElementById("btnConfirmarExclusaoUsuario").onclick = () => excluirUsuario(id)
+  document.getElementById("modalConfirmacaoUsuario").style.display = "flex"
+}
+
+async function excluirUsuario(id) {
+  const btnConfirmar = document.getElementById("btnConfirmarExclusaoUsuario")
+  try {
+    const usuario = usuarios.find((u) => u.id === id)
+    console.log("[USUARIOS] Tentando deletar usuário ID:", id)
+    if (btnConfirmar) {
+      btnConfirmar.disabled = true
+      btnConfirmar.textContent = "Excluindo..."
+    }
+    await deletarUsuario(id)
+    registrarLog("DELETAR", "USUARIOS", `Usuário "${usuario?.nome}" deletado`)
+    console.log("[USUARIOS] Usuário deletado com sucesso")
+    document.getElementById("modalConfirmacaoUsuario").style.display = "none"
+    mostrarNotificacao(`Usuário "${usuario?.nome}" foi excluído com sucesso!`, "sucesso")
+    await carregarUsuarios()
+  } catch (error) {
+    console.error("[USUARIOS] Erro ao excluir usuário:", error)
+    mostrarNotificacao("Erro ao excluir usuário: " + error.message, "erro")
+  } finally {
+    if (btnConfirmar) {
+      btnConfirmar.disabled = false
+      btnConfirmar.innerHTML = '<i class="fas fa-trash"></i> Excluir'
+    }
+  }
+}
+
+function formatarCargo(cargo) {
+  const map = {
+    "head-admin": "Head Admin",
+    admin: "Admin",
+    editor: "Editor",
+    visualizar: "Visualizar",
+    visualizador: "Visualizar"
+  }
+  return map[cargo?.toLowerCase()] || (cargo ? cargo.charAt(0).toUpperCase() + cargo.slice(1) : "")
+}
+
+function atualizarCheckboxesUsuarios() {
+  const checkboxes = document.querySelectorAll(".usuario-checkbox")
+  usuariosSelecionados = Array.from(checkboxes)
+    .filter((cb) => cb.checked)
+    .map((cb) => parseInt(cb.getAttribute("data-id")))
+
+  const bulkActions = document.getElementById("bulkActions")
   if (usuariosSelecionados.length > 0) {
     bulkActions.style.display = "flex"
-    selectedCount.textContent = `${usuariosSelecionados.length} usuário${
-      usuariosSelecionados.length > 1 ? "s selecionado" : " selecionado"
-    }${usuariosSelecionados.length > 1 ? "s" : ""}`
+    document.getElementById("selectedCount").textContent = `${usuariosSelecionados.length} usuário(s) selecionado(s)`
   } else {
     bulkActions.style.display = "none"
   }
+}
 
-  // Update select all checkbox
-  const checkboxes = document.querySelectorAll(".checkbox-usuario")
-  const selectAll = document.getElementById("selectAll")
-  if (checkboxes.length > 0) {
-    selectAll.checked = checkboxes.length === usuariosSelecionados.length
-  } else {
-    selectAll.checked = false
+function adicionarListenersCheckboxesUsuarios() {
+  const checkboxes = document.querySelectorAll(".usuario-checkbox")
+  checkboxes.forEach((checkbox) => {
+    checkbox.removeEventListener("change", atualizarCheckboxesUsuarios)
+    checkbox.addEventListener("change", atualizarCheckboxesUsuarios)
+  })
+}
+
+async function excluirSelecionadosUsuarios() {
+  if (usuariosSelecionados.length === 0) {
+    mostrarNotificacao("Nenhum usuário selecionado", "aviso")
+    return
+  }
+
+  const usuario = obterUsuarioLogado()
+  const cargoLogado = usuario?.cargo?.toLowerCase()
+
+  for (const id of usuariosSelecionados) {
+    const usr = usuarios.find((u) => u.id === id)
+    
+    if (usr.id === usuario.id) {
+      mostrarNotificacao("Você não pode excluir sua própria conta", "aviso")
+      return
+    }
+
+    const cargoAlvo = usr?.permissao?.toLowerCase()
+    if (cargoLogado === "admin" && (cargoAlvo === "admin" || cargoAlvo === "head-admin")) {
+      mostrarNotificacao(`Admin não pode excluir usuário(s) com cargo igual ou superior`, "aviso")
+      return
+    }
+  }
+
+  const nomes = usuariosSelecionados
+    .map(id => usuarios.find(u => u.id === id)?.nome)
+    .filter(Boolean)
+    .join(", ")
+
+  document.getElementById("nomeUsuarioExcluir").textContent = `${usuariosSelecionados.length} usuário(s): ${nomes}`
+  document.getElementById("btnConfirmarExclusaoUsuario").onclick = () => executarExclusaoEmMassaUsuarios()
+  document.getElementById("modalConfirmacaoUsuario").style.display = "flex"
+}
+
+async function executarExclusaoEmMassaUsuarios() {
+  const btnConfirmar = document.getElementById("btnConfirmarExclusaoUsuario")
+  try {
+    if (btnConfirmar) {
+      btnConfirmar.disabled = true
+      btnConfirmar.textContent = "Excluindo..."
+    }
+    
+    for (const id of usuariosSelecionados) {
+      const usr = usuarios.find((u) => u.id === id)
+      await deletarUsuario(id)
+      registrarLog("DELETAR", "USUARIOS", `Usuário "${usr?.nome}" deletado (em massa)`)
+    }
+    
+    document.getElementById("modalConfirmacaoUsuario").style.display = "none"
+    mostrarNotificacao("Usuários deletados com sucesso!", "sucesso")
+    await carregarUsuarios()
+  } catch (error) {
+    mostrarNotificacao("Erro ao deletar usuários: " + error.message, "erro")
+  } finally {
+    if (btnConfirmar) {
+      btnConfirmar.disabled = false
+      btnConfirmar.innerHTML = '<i class="fas fa-trash"></i> Excluir'
+    }
   }
 }

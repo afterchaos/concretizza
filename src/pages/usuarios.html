@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../styles/styleUsuarios.css">
+    <link rel="stylesheet" href="/styles/usuarios.css">
 </head>
 <body class="app-page">
     <aside class="sidebar">
@@ -42,6 +42,10 @@
                     <i class="fas fa-user-tie"></i>
                     <span>Gerenciar Usuários</span>
                 </a>
+                <a href="logs.html" class="nav-item">
+                    <i class="fas fa-history"></i>
+                    <span>Logs</span>
+                </a>
             </div>
             <div class="nav-divider"></div>
             <a href="#" class="nav-item" id="logoutBtn">
@@ -62,7 +66,7 @@
             <div class="header-right">
                 <div class="user-info">
                     <span id="userName">Administrador</span>
-                    <span class="user-role">Admin</span>
+                    <span id="userRole" class="user-role">Admin</span>
                 </div>
                 <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='50%25' fill='%23FFD700'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23000' font-size='20' font-family='Arial'%3EU%3C/text%3E%3C/svg%3E" alt="Avatar" class="avatar">
             </div>
@@ -120,9 +124,10 @@
                     <input type="text" id="searchUsuarios" placeholder="Buscar por nome ou email..." class="search-input">
                     <select id="filterPermissao" class="select-input">
                         <option value="">Todas as permissões</option>
-                        <option value="admin">Administrador</option>
+                        <option value="head-admin">Head-Admin</option>
+                        <option value="admin">Admin</option>
                         <option value="editor">Editor</option>
-                        <option value="visualizador">Visualizador</option>
+                        <option value="visualizar">Visualizar</option>
                     </select>
                     <select id="filterStatus" class="select-input">
                         <option value="">Todos os status</option>
@@ -191,16 +196,21 @@
                         <input type="email" id="usuarioEmail" placeholder="usuario@email.com" required>
                     </div>
                     <div class="form-group">
-                        <label for="usuarioSenha">Senha *</label>
-                        <input type="password" id="usuarioSenha" placeholder="Mínimo 6 caracteres" required>
+                        <label for="usuarioUsername">Usuário *</label>
+                        <input type="text" id="usuarioUsername" placeholder="Ex: joao.silva" required>
+                    </div>
+                    <div class="form-group" id="usuarioPasswordGroup">
+                        <label for="usuarioPassword">Senha *</label>
+                        <input type="password" id="usuarioPassword" placeholder="Mínimo 6 caracteres" required>
                     </div>
                     <div class="form-group">
                         <label for="usuarioPermissao">Nível de Permissão *</label>
                         <select id="usuarioPermissao" required>
                             <option value="">Selecione</option>
-                            <option value="admin">Administrador - Acesso total</option>
+                            <option value="head-admin">Head-Admin - Gerencia admins + Acesso total</option>
+                            <option value="admin">Admin - Acesso total</option>
                             <option value="editor">Editor - Criar e editar</option>
-                            <option value="visualizador">Visualizador - Apenas visualizar</option>
+                            <option value="visualizar">Visualizar - Apenas visualizar</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -328,24 +338,24 @@
         </div>
     </div>
 
-    <div id="modalConfirmacao" class="modal">
+    <div id="modalConfirmacaoUsuario" class="modal">
         <div class="modal-content modal-confirmation">
             <div class="modal-header">
                 <h2>Confirmar Exclusão</h2>
-                <button class="modal-close" id="closeConfirmacao">&times;</button>
+                <button class="modal-close" id="closeConfirmacaoUsuario">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="confirmation-content">
                     <div class="confirmation-icon">
                         <i class="fas fa-exclamation-triangle"></i>
                     </div>
-                    <p id="confirmationMessage">Tem certeza que deseja excluir este usuário?</p>
+                    <p>Tem certeza que deseja excluir o usuário <strong id="nomeUsuarioExcluir">-</strong>?</p>
                     <p class="confirmation-warning">Esta ação não pode ser desfeita.</p>
                 </div>
                 <div class="confirmation-actions">
-                    <button class="btn-secondary" id="btnCancelarExclusao">Cancelar</button>
-                    <button class="btn-danger" id="btnConfirmarExclusao">
-                        <i class="fas fa-trash"></i> Confirmar Exclusão
+                    <button class="btn-secondary" id="btnCancelarExclusaoUsuario">Cancelar</button>
+                    <button class="btn-danger" id="btnConfirmarExclusaoUsuario">
+                        <i class="fas fa-trash"></i> Excluir
                     </button>
                 </div>
             </div>
@@ -354,6 +364,10 @@
 
     <div id="toastNotification" class="toast"></div>
 
-    <script src="../scripts/utils/usuarios.js"></script>
+    <script src="/scripts/utils/api.js?v=999"></script>
+    <script src="/scripts/utils/permissions.js?v=999"></script>
+    <script src="/scripts/utils/data.js?v=999"></script>
+    <script src="/scripts/utils/logs.js?v=999"></script>
+    <script src="/scripts/utils/usuarios.js?v=999"></script>
 </body>
 </html>

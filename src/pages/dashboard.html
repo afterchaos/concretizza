@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../styles/styleDashboard.css">
+    <link rel="stylesheet" href="/styles/dashboard.css">
 </head>
 <body class="app-page">
     <!-- Sidebar -->
@@ -43,6 +43,10 @@
                 <a href="usuarios.html" class="nav-item" data-page="usuarios">
                     <i class="fas fa-user-tie"></i>
                     <span>Gerenciar Usuários</span>
+                </a>
+                <a href="logs.html" class="nav-item" data-page="logs">
+                    <i class="fas fa-history"></i>
+                    <span>Logs</span>
                 </a>
             </div>
 
@@ -414,7 +418,9 @@
 
     <div id="toastNotification" class="toast"></div>
 
-    <script src="../scripts/utils/dados.js"></script>
-    <script src="../scripts/app.js"></script>
+    <script src="/scripts/utils/api.js?v=2"></script>
+    <script src="/scripts/utils/permissions.js?v=2"></script>
+    <script src="/scripts/utils/data.js?v=2"></script>
+    <script src="/scripts/dashboard.js?v=2"></script>
 </body>
 </html>
