@@ -14,6 +14,8 @@ const PORT = process.env.PORT || 3000
 const JWT_SECRET = process.env.JWT_SECRET || "sua_chave_jwt_super_secreta_aqui_min_32_caracteres"
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS) || 10
 
+app.set('trust proxy', 1)
+
 // ===== MIDDLEWARE DE SEGURANÇA =====
 app.use(cors({
   origin: process.env.CORS_ORIGIN || "http://localhost:3000",
@@ -27,6 +29,9 @@ const limiter = rateLimit({
   message: "Muitas requisições, tente novamente mais tarde",
   skip: (req) => {
     return !req.path.startsWith('/api/')
+  },
+  keyGenerator: (req) => {
+    return req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for']?.split(',')[0]?.trim() || 'unknown'
   }
 })
 
@@ -90,17 +95,24 @@ function validarRequisicao(req, res, next) {
 }
 
 // ===== INICIALIZAR BANCO DE DADOS =====
+if (!process.env.DATABASE_URL) {
+  console.error('❌ ERRO: Variável DATABASE_URL não configurada!')
+  console.error('No Render, adicione em Settings > Environment:')
+  console.error('DATABASE_URL=postgresql://...')
+  process.exit(1)
+}
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 })
 
 pool.on('error', (err) => {
-  console.error('Erro no pool PostgreSQL:', err)
+  console.error('❌ Erro no pool PostgreSQL:', err.message)
 })
 
 pool.on('connect', () => {
-  console.log('Banco de dados conectado')
+  console.log('✓ Banco de dados conectado')
 })
 
 // ===== WRAPPER FUNÇÕES PARA COMPATIBILIDADE =====
