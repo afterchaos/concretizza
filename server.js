@@ -282,7 +282,7 @@ app.post(
     console.log(`[LOGIN] Tentativa de login para usuário: ${username}`)
     
     db.get(
-      "SELECT id, nome, email, username, senha, permissao FROM usuarios WHERE (username = ? OR email = ?) AND status = ?",
+      "SELECT id, nome, email, username, senha, permissao FROM usuarios WHERE (username = $1 OR email = $2) AND status = $3",
       [username, username, "ativo"],
       (err, user) => {
         if (err) {
@@ -317,7 +317,7 @@ app.post(
 
           console.log(`[LOGIN] Token gerado para ${username}, cargo: ${user.permissao}`)
 
-          db.run("UPDATE usuarios SET ultimoAcesso = ? WHERE id = ?", [new Date().toISOString(), user.id])
+          db.run("UPDATE usuarios SET ultimoAcesso = $1 WHERE id = $2", [new Date().toISOString(), user.id])
 
           res.json({
             token,
@@ -351,7 +351,7 @@ app.post(
       if (err) return res.status(500).json({ error: "Erro ao processar senha" })
 
       db.run(
-        "INSERT INTO usuarios (nome, email, username, senha, permissao, status) VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO usuarios (nome, email, username, senha, permissao, status) VALUES ($1, $2, $3, $4, $5, $6)",
         [nome, email, username, senhaHash, "editor", "ativo"],
         function (err) {
           if (err) {
@@ -397,7 +397,7 @@ app.post(
     console.log("[CLIENTES] Criando novo cliente:", { nome, telefone, email, interesse, valor, status, observacoes, data })
     
     db.run(
-      "INSERT INTO clientes (nome, telefone, email, interesse, valor, status, observacoes, data, usuario_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO clientes (nome, telefone, email, interesse, valor, status, observacoes, data, usuario_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
       [nome, telefone, email || null, interesse, valor || null, status, observacoes || null, data, req.usuario.id],
       function (err) {
         if (err) {
@@ -426,7 +426,7 @@ app.put(
     const { nome, telefone, email, interesse, valor, status, observacoes } = req.body
     
     db.run(
-      "UPDATE clientes SET nome = ?, telefone = ?, email = ?, interesse = ?, valor = ?, status = ?, observacoes = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?",
+      "UPDATE clientes SET nome = $1, telefone = $2, email = $3, interesse = $4, valor = $5, status = $6, observacoes = $7, atualizado_em = CURRENT_TIMESTAMP WHERE id = $8",
       [nome, telefone, email, interesse, valor, status, observacoes, id],
       function (err) {
         if (err) return res.status(500).json({ error: "Erro ao atualizar cliente" })
@@ -446,7 +446,7 @@ app.delete(
   (req, res) => {
     const { id } = req.params
     
-    db.run("DELETE FROM clientes WHERE id = ?", [id], function (err) {
+    db.run("DELETE FROM clientes WHERE id = $1", [id], function (err) {
       if (err) return res.status(500).json({ error: "Erro ao deletar cliente" })
       if (this.changes === 0) return res.status(404).json({ error: "Cliente não encontrado" })
       res.json({ success: true, message: "Cliente deletado com sucesso" })
@@ -494,7 +494,7 @@ app.post(
       if (err) return res.status(500).json({ error: "Erro ao processar senha" })
 
       db.run(
-        "INSERT INTO usuarios (nome, email, username, senha, permissao, status, telefone, departamento) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO usuarios (nome, email, username, senha, permissao, status, telefone, departamento) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
         [nome, email, username, senhaHash, permissao, status || "ativo", telefone || null, departamento || null],
         function (err) {
           if (err) {
@@ -522,7 +522,7 @@ app.put(
     const cargoUsuarioLogado = req.usuario.cargo.toLowerCase()
     const usuarioIdSendoEditado = parseInt(id)
 
-    db.get("SELECT permissao FROM usuarios WHERE id = ?", [usuarioIdSendoEditado], (err, usuarioAlvo) => {
+    db.get("SELECT permissao FROM usuarios WHERE id = $1", [usuarioIdSendoEditado], (err, usuarioAlvo) => {
       if (err) return res.status(500).json({ error: "Erro ao verificar usuário" })
       if (!usuarioAlvo) return res.status(404).json({ error: "Usuário não encontrado" })
 
@@ -537,7 +537,7 @@ app.put(
           if (err) return res.status(500).json({ error: "Erro ao processar senha" })
           
           db.run(
-            "UPDATE usuarios SET nome = ?, email = ?, senha = ?, permissao = ?, status = ?, telefone = ?, departamento = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?",
+            "UPDATE usuarios SET nome = $1, email = $2, senha = $3, permissao = $4, status = $5, telefone = $6, departamento = $7, atualizado_em = CURRENT_TIMESTAMP WHERE id = $8",
             [nome, email, senhaHash, permissao, status, telefone, departamento, id],
             function (err) {
               if (err) {
@@ -554,7 +554,7 @@ app.put(
         })
       } else {
         db.run(
-          "UPDATE usuarios SET nome = ?, email = ?, permissao = ?, status = ?, telefone = ?, departamento = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?",
+          "UPDATE usuarios SET nome = $1, email = $2, permissao = $3, status = $4, telefone = $5, departamento = $6, atualizado_em = CURRENT_TIMESTAMP WHERE id = $7",
           [nome, email, permissao, status, telefone, departamento, id],
           function (err) {
             if (err) {
@@ -591,7 +591,7 @@ app.delete(
       return res.status(400).json({ error: "Você não pode deletar sua própria conta" })
     }
 
-    db.get("SELECT permissao FROM usuarios WHERE id = ?", [usuarioId], (err, usuario) => {
+    db.get("SELECT permissao FROM usuarios WHERE id = $1", [usuarioId], (err, usuario) => {
       if (err) {
         console.error("[DELETE USUARIO] Erro ao buscar usuário:", err)
         return res.status(500).json({ error: "Erro ao deletar usuário" })
@@ -610,7 +610,7 @@ app.delete(
         return res.status(403).json({ error: "Admin não pode deletar usuários com cargo igual ou superior" })
       }
 
-      db.run("DELETE FROM usuarios WHERE id = ?", [usuarioId], function (err) {
+      db.run("DELETE FROM usuarios WHERE id = $1", [usuarioId], function (err) {
         if (err) {
           console.error("[DELETE USUARIO] Erro ao deletar:", err)
           return res.status(500).json({ error: "Erro ao deletar usuário" })
