@@ -41,11 +41,12 @@ function carregarDadosUsuario() {
 
 async function carregarLogs() {
   try {
-    const auditLogs = localStorage.getItem("logs")
-    logs = auditLogs ? JSON.parse(auditLogs) : []
+    const logsApi = await fazerRequisicao("/api/logs")
+    logs = logsApi || []
     atualizarTabela()
   } catch (error) {
     console.error("Erro ao carregar logs:", error)
+    mostrarNotificacao("Erro ao carregar logs do servidor", "erro")
   }
 }
 
