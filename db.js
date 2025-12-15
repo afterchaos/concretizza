@@ -6,11 +6,23 @@ const path = require("path")
 const USE_SQLITE = !process.env.DATABASE_URL
 const db = USE_SQLITE ? initSQLite() : initPostgreSQL()
 
+function getDataSaoPaulo() {
+  return new Date().toLocaleString('pt-BR', { 
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  })
+}
+
 function initSQLite() {
   const dbPath = path.join(__dirname, "concretizza.db")
   const sqlite = new Database(dbPath)
   sqlite.pragma("journal_mode = WAL")
-  console.log("✓ SQLite database conectado:", dbPath)
+  console.log(`[${getDataSaoPaulo()}] ✓ SQLite database conectado:`, dbPath)
 
   return {
     isPostgres: false,
@@ -121,11 +133,11 @@ function initPostgreSQL() {
   })
 
   pool.on('error', (err) => {
-    console.error('❌ Erro no pool PostgreSQL:', err.message)
+    console.error(`[${getDataSaoPaulo()}] ❌ Erro no pool PostgreSQL:`, err.message)
   })
 
   pool.on('connect', () => {
-    console.log('✓ PostgreSQL conectado')
+    console.log(`[${getDataSaoPaulo()}] ✓ PostgreSQL conectado`)
   })
 
   return {

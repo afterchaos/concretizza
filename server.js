@@ -58,17 +58,17 @@ function autenticar(req, res, next) {
   const token = req.headers.authorization?.split(" ")[1]
   
   if (!token) {
-    console.log("[AUTH] Token não fornecido")
+    console.log(`[${getDataSaoPaulo()}] [AUTH] Token não fornecido`)
     return res.status(401).json({ error: "Token não fornecido" })
   }
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET)
-    console.log("[AUTH] Token verificado:", decoded)
+    console.log(`[${getDataSaoPaulo()}] [AUTH] Token verificado:`, decoded)
     req.usuario = decoded
     next()
   } catch (err) {
-    console.log("[AUTH] Token inválido:", err.message)
+    console.log(`[${getDataSaoPaulo()}] [AUTH] Token inválido:`, err.message)
     return res.status(401).json({ error: "Token inválido ou expirado" })
   }
 }
@@ -76,12 +76,12 @@ function autenticar(req, res, next) {
 // ===== MIDDLEWARE DE AUTORIZAÇÃO =====
 function autorizar(...cargos) {
   return (req, res, next) => {
-    console.log(`[AUTORIZAR] Verificando cargo "${req.usuario.cargo}" contra [${cargos.join(", ")}]`)
+    console.log(`[${getDataSaoPaulo()}] [AUTORIZAR] Verificando cargo "${req.usuario.cargo}" contra [${cargos.join(", ")}]`)
     if (!cargos.includes(req.usuario.cargo)) {
-      console.log(`[AUTORIZAR] Permissão negada para cargo "${req.usuario.cargo}"`)
+      console.log(`[${getDataSaoPaulo()}] [AUTORIZAR] Permissão negada para cargo "${req.usuario.cargo}"`)
       return res.status(403).json({ error: "Permissão negada" })
     }
-    console.log(`[AUTORIZAR] Permissão concedida para cargo "${req.usuario.cargo}"`)
+    console.log(`[${getDataSaoPaulo()}] [AUTORIZAR] Permissão concedida para cargo "${req.usuario.cargo}"`)
     next()
   }
 }
@@ -111,6 +111,18 @@ function dbQuery(sql, params = []) {
   })
 }
 
+function getDataSaoPaulo() {
+  return new Date().toLocaleString('pt-BR', { 
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  })
+}
+
 // ===== CRIAR TABELAS =====
 async function initializeTables() {
   try {
@@ -130,7 +142,7 @@ async function initializeTables() {
         atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `)
-    console.log("✓ Tabela usuarios criada")
+    console.log(`[${getDataSaoPaulo()}] ✓ Tabela usuarios criada`)
 
     await dbQuery(`
       CREATE TABLE IF NOT EXISTS clientes (
@@ -148,7 +160,7 @@ async function initializeTables() {
         atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `)
-    console.log("✓ Tabela clientes criada")
+    console.log(`[${getDataSaoPaulo()}] ✓ Tabela clientes criada`)
 
     await dbQuery(`
       CREATE TABLE IF NOT EXISTS agendamentos (
@@ -164,7 +176,7 @@ async function initializeTables() {
         atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `)
-    console.log("✓ Tabela agendamentos criada")
+    console.log(`[${getDataSaoPaulo()}] ✓ Tabela agendamentos criada`)
 
     await dbQuery(`
       CREATE TABLE IF NOT EXISTS logs_auditoria (
@@ -183,12 +195,12 @@ async function initializeTables() {
     try {
       await dbQuery("ALTER TABLE logs_auditoria ADD COLUMN IF NOT EXISTS usuario_afetado TEXT")
     } catch (e) {
-      console.log("Nota: Coluna usuario_afetado já existe ou erro ao adicionar:", e.message)
+      console.log(`[${getDataSaoPaulo()}] Nota: Coluna usuario_afetado já existe ou erro ao adicionar:`, e.message)
     }
 
-    console.log("✓ Tabela logs_auditoria criada/verificada")
+    console.log(`[${getDataSaoPaulo()}] ✓ Tabela logs_auditoria criada/verificada`)
   } catch (error) {
-    console.error("Erro ao criar tabelas:", error.message)
+    console.error(`[${getDataSaoPaulo()}] Erro ao criar tabelas:`, error.message)
   }
 }
 
@@ -201,9 +213,10 @@ async function registrarLog(usuarioId, acao, modulo, descricao, usuarioAfetado =
       "INSERT INTO logs_auditoria (usuario_id, acao, modulo, descricao, usuario_afetado, ip_address) VALUES ($1, $2, $3, $4, $5, $6)",
       [usuarioId, acao, modulo, descricao, usuarioAfetado, ip]
     )
-    console.log(`[LOG] ${acao} - ${modulo}: ${descricao}`)
+    
+    console.log(`[LOG] ${getDataSaoPaulo()} - ${acao} - ${modulo}: ${descricao}`)
   } catch (err) {
-    console.error("[LOG] Erro ao registrar log:", err.message)
+    console.error(`[LOG] ${getDataSaoPaulo()} - Erro ao registrar log:`, err.message)
   }
 }
 
@@ -247,7 +260,7 @@ async function seedDefaultUsers() {
     const count = parseInt(result.rows[0].count)
 
     if (count === 0) {
-      console.log("📝 Criando usuários padrão...")
+      console.log(`[${getDataSaoPaulo()}] 📝 Criando usuários padrão...`)
       for (const usuario of usuariosPadrao) {
         const senhaHash = await bcrypt.hash(usuario.password, BCRYPT_ROUNDS)
         try {
@@ -259,12 +272,12 @@ async function seedDefaultUsers() {
         } catch (e) {
           if (!e.message.includes("UNIQUE")) throw e
         }
-        console.log(`  ✓ ${usuario.username}`)
+        console.log(`[${getDataSaoPaulo()}]   ✓ ${usuario.username}`)
       }
-      console.log("✓ Usuários padrão criados com sucesso!")
+      console.log(`[${getDataSaoPaulo()}] ✓ Usuários padrão criados com sucesso!`)
     }
   } catch (error) {
-    console.error("❌ Erro ao criar usuários padrão:", error.message)
+    console.error(`[${getDataSaoPaulo()}] ❌ Erro ao criar usuários padrão:`, error.message)
   }
 }
 
@@ -280,43 +293,43 @@ app.post(
   validarRequisicao,
   (req, res) => {
     const { username, password } = req.body
-    console.log(`[LOGIN] Tentativa de login para usuário: ${username}`)
+    console.log(`[${getDataSaoPaulo()}] [LOGIN] Tentativa de login para usuário: ${username}`)
     
     db.get(
       "SELECT id, nome, email, username, senha, permissao FROM usuarios WHERE (username = $1 OR email = $2) AND status = $3",
       [username, username, "ativo"],
       (err, user) => {
         if (err) {
-          console.log(`[LOGIN] Erro ao buscar usuário:`, err)
+          console.log(`[${getDataSaoPaulo()}] [LOGIN] Erro ao buscar usuário:`, err)
           return res.status(500).json({ error: "Erro no servidor" })
         }
         
         if (!user) {
-          console.log(`[LOGIN] Usuário não encontrado: ${username}`)
+          console.log(`[${getDataSaoPaulo()}] [LOGIN] Usuário não encontrado: ${username}`)
           return res.status(401).json({ error: "Usuário ou senha incorretos" })
         }
 
-        console.log(`[LOGIN] Usuário encontrado: ${user.username}, permissao: ${user.permissao}`)
+        console.log(`[${getDataSaoPaulo()}] [LOGIN] Usuário encontrado: ${user.username}, permissao: ${user.permissao}`)
 
         bcrypt.compare(password, user.senha, (err, isValid) => {
           if (err) {
-            console.log(`[LOGIN] Erro ao comparar senha:`, err)
+            console.log(`[${getDataSaoPaulo()}] [LOGIN] Erro ao comparar senha:`, err)
             return res.status(500).json({ error: "Erro no servidor" })
           }
           
           if (!isValid) {
-            console.log(`[LOGIN] Senha inválida para ${username}`)
+            console.log(`[${getDataSaoPaulo()}] [LOGIN] Senha inválida para ${username}`)
             return res.status(401).json({ error: "Usuário ou senha incorretos" })
           }
 
-          console.log(`[LOGIN] Autenticação bem-sucedida para ${username}`)
+          console.log(`[${getDataSaoPaulo()}] [LOGIN] Autenticação bem-sucedida para ${username}`)
           const token = jwt.sign(
             { id: user.id, username: user.username, cargo: user.permissao },
             JWT_SECRET,
             { expiresIn: process.env.JWT_EXPIRE || "24h" }
           )
 
-          console.log(`[LOGIN] Token gerado para ${username}, cargo: ${user.permissao}`)
+          console.log(`[${getDataSaoPaulo()}] [LOGIN] Token gerado para ${username}, cargo: ${user.permissao}`)
 
           db.run("UPDATE usuarios SET ultimoAcesso = $1 WHERE id = $2", [new Date().toISOString(), user.id])
 
@@ -375,13 +388,26 @@ app.post(
 
 // ===== ROTAS DE CLIENTES =====
 app.get("/api/clientes", autenticar, (req, res) => {
-  db.all(
-    "SELECT id, nome, telefone, email, interesse, valor, status, observacoes, data FROM clientes ORDER BY data DESC",
-    (err, rows) => {
-      if (err) return res.status(500).json({ error: "Erro ao buscar clientes" })
-      res.json(rows || [])
+  const isCorretor = req.usuario.cargo?.toLowerCase() === "corretor"
+  const usuarioId = req.usuario.id
+  
+  let query = "SELECT c.id, c.nome, c.telefone, c.email, c.interesse, c.valor, c.status, c.observacoes, c.data, c.usuario_id, u.nome as cadastrado_por FROM clientes c LEFT JOIN usuarios u ON c.usuario_id = u.id"
+  let params = []
+  
+  if (isCorretor) {
+    query += " WHERE c.usuario_id = $1"
+    params = [usuarioId]
+  }
+  
+  query += " ORDER BY c.data DESC"
+  
+  db.all(query, params, (err, rows) => {
+    if (err) {
+      console.error("[CLIENTES GET] Erro ao buscar clientes:", err)
+      return res.status(500).json({ error: "Erro ao buscar clientes" })
     }
-  )
+    res.json(rows || [])
+  })
 })
 
 app.post(
@@ -399,7 +425,7 @@ app.post(
   async (req, res) => {
     const { nome, telefone, email, interesse, valor, status, observacoes, data } = req.body
     
-    console.log("[CLIENTES] Criando novo cliente:", { nome, telefone, email, interesse, valor, status, observacoes, data })
+    console.log(`[${getDataSaoPaulo()}] [CLIENTES] Criando novo cliente:`, { nome, telefone, email, interesse, valor, status, observacoes, data })
     
     try {
       const result = await dbQuery(
@@ -407,11 +433,11 @@ app.post(
         [nome, telefone, email || null, interesse, valor || null, status, observacoes || null, data, req.usuario.id]
       )
       const clienteId = result.rows[0]?.id
-      console.log("[CLIENTES] Cliente criado com sucesso, ID:", clienteId)
+      console.log(`[${getDataSaoPaulo()}] [CLIENTES] Cliente criado com sucesso, ID:`, clienteId)
       await registrarLog(req.usuario.id, "CRIAR", "Clientes", `Cliente criado: ${nome}`, nome, req)
       res.status(201).json({ id: clienteId, message: "Cliente criado com sucesso" })
     } catch (err) {
-      console.error("[CLIENTES] Erro ao inserir cliente:", err)
+      console.error(`[${getDataSaoPaulo()}] [CLIENTES] Erro ao inserir cliente:`, err)
       res.status(500).json({ error: "Erro ao criar cliente: " + err.message })
     }
   }
@@ -430,8 +456,20 @@ app.put(
   async (req, res) => {
     const { id } = req.params
     const { nome, telefone, email, interesse, valor, status, observacoes } = req.body
+    const isCorretor = req.usuario.cargo?.toLowerCase() === "corretor"
     
     try {
+      if (isCorretor) {
+        const cliente = await dbQuery("SELECT usuario_id FROM clientes WHERE id = $1", [id])
+        if (cliente.rows.length === 0) {
+          return res.status(404).json({ error: "Cliente não encontrado" })
+        }
+        if (cliente.rows[0].usuario_id !== req.usuario.id) {
+          console.log(`[${getDataSaoPaulo()}] [CLIENTES PUT] Corretor tentou editar cliente de outro usuário`)
+          return res.status(403).json({ error: "Você não tem permissão para editar este cliente" })
+        }
+      }
+      
       const result = await dbQuery(
         "UPDATE clientes SET nome = $1, telefone = $2, email = $3, interesse = $4, valor = $5, status = $6, observacoes = $7, atualizado_em = CURRENT_TIMESTAMP WHERE id = $8",
         [nome, telefone, email, interesse, valor, status, observacoes, id]
@@ -454,10 +492,21 @@ app.delete(
   validarRequisicao,
   async (req, res) => {
     const { id } = req.params
+    const isCorretor = req.usuario.cargo?.toLowerCase() === "corretor"
     
     try {
-      const clienteResult = await dbQuery("SELECT nome FROM clientes WHERE id = $1", [id])
+      const clienteResult = await dbQuery("SELECT nome, usuario_id FROM clientes WHERE id = $1", [id])
       const cliente = clienteResult.rows[0]
+      
+      if (!cliente) {
+        return res.status(404).json({ error: "Cliente não encontrado" })
+      }
+      
+      if (isCorretor && cliente.usuario_id !== req.usuario.id) {
+        console.log(`[${getDataSaoPaulo()}] [CLIENTES DELETE] Corretor tentou deletar cliente de outro usuário`)
+        return res.status(403).json({ error: "Você não tem permissão para deletar este cliente" })
+      }
+      
       const clienteNome = cliente?.nome || id
       
       const deleteResult = await dbQuery("DELETE FROM clientes WHERE id = $1", [id])
@@ -607,10 +656,10 @@ app.delete(
     const usuarioId = parseInt(id)
     const usuarioAtual = req.usuario
 
-    console.log(`[DELETE USUARIO] Tentativa de deletar usuário ${usuarioId} por ${usuarioAtual.cargo} (ID: ${usuarioAtual.id})`)
+    console.log(`[${getDataSaoPaulo()}] [DELETE USUARIO] Tentativa de deletar usuário ${usuarioId} por ${usuarioAtual.cargo} (ID: ${usuarioAtual.id})`)
 
     if (usuarioId === usuarioAtual.id) {
-      console.log("[DELETE USUARIO] Erro: tentativa de deletar a própria conta")
+      console.log(`[${getDataSaoPaulo()}] [DELETE USUARIO] Erro: tentativa de deletar a própria conta`)
       return res.status(400).json({ error: "Você não pode deletar sua própria conta" })
     }
 
@@ -621,7 +670,7 @@ app.delete(
       const usuarioAlvo = userResult.rows[0]
 
       if (!usuarioAlvo) {
-        console.log("[DELETE USUARIO] Usuário não encontrado")
+        console.log(`[${getDataSaoPaulo()}] [DELETE USUARIO] Usuário não encontrado`)
         return res.status(404).json({ error: "Usuário não encontrado" })
       }
 
@@ -629,7 +678,7 @@ app.delete(
       const cargoUsuarioAlvo = usuarioAlvo.permissao?.toLowerCase()
 
       if (cargoUsuarioLogado === "admin" && (cargoUsuarioAlvo === "admin" || cargoUsuarioAlvo === "head-admin")) {
-        console.log("[DELETE USUARIO] Erro: Admin tentou deletar usuário com cargo igual ou superior")
+        console.log(`[${getDataSaoPaulo()}] [DELETE USUARIO] Erro: Admin tentou deletar usuário com cargo igual ou superior`)
         return res.status(403).json({ error: "Admin não pode deletar usuários com cargo igual ou superior" })
       }
 
@@ -675,7 +724,7 @@ app.delete(
         }
       }
       
-      console.log("[DELETE USUARIO] Usuário e dados relacionados processados com sucesso")
+      console.log(`[${getDataSaoPaulo()}] [DELETE USUARIO] Usuário e dados relacionados processados com sucesso`)
       await registrarLog(req.usuario.id, "DELETAR", "Usuários", `Usuário deletado: ${usuarioId}`, usuarioAlvo?.nome || usuarioId, req)
       res.json({ success: true, message: "Usuário deletado com sucesso" })
 
@@ -709,6 +758,26 @@ app.get("/api/logs", autenticar, autorizar("head-admin", "admin"), async (req, r
     
     const logsFormatados = result.rows.map(log => {
       const data = new Date(log.criado_em)
+      
+      const formatter = new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      })
+      
+      const partes = formatter.formatToParts(data)
+      const dia = partes.find(p => p.type === 'day')?.value
+      const mes = partes.find(p => p.type === 'month')?.value
+      const ano = partes.find(p => p.type === 'year')?.value
+      const hora = partes.find(p => p.type === 'hour')?.value
+      const minuto = partes.find(p => p.type === 'minute')?.value
+      const segundo = partes.find(p => p.type === 'second')?.value
+      
       return {
         id: log.id,
         acao: log.acao,
@@ -716,8 +785,8 @@ app.get("/api/logs", autenticar, autorizar("head-admin", "admin"), async (req, r
         descricao: log.descricao,
         usuarioLogado: log.usuario_nome || log.usuario_username || "Sistema/Deletado",
         usuarioAfetado: log.usuario_afetado,
-        dataFormatada: data.toLocaleDateString('pt-BR'),
-        horaFormatada: data.toLocaleTimeString('pt-BR'),
+        dataFormatada: `${dia}/${mes}/${ano}`,
+        horaFormatada: `${hora}:${minuto}:${segundo}`,
         ip: log.ip_address,
         criado_em: log.criado_em
       }
@@ -725,7 +794,7 @@ app.get("/api/logs", autenticar, autorizar("head-admin", "admin"), async (req, r
     
     res.json(logsFormatados)
   } catch (err) {
-    console.error("[LOGS] Erro ao buscar logs:", err)
+    console.error(`[${getDataSaoPaulo()}] [LOGS] Erro ao buscar logs:`, err)
     res.status(500).json({ error: "Erro ao buscar logs: " + err.message })
   }
 })
@@ -734,10 +803,10 @@ app.delete("/api/logs", autenticar, autorizar("head-admin", "admin"), async (req
   try {
     await dbQuery(`DELETE FROM logs_auditoria`)
     
-    console.log("[LOGS] Todos os logs foram deletados pelo usuário:", req.usuario.username)
+    console.log(`[${getDataSaoPaulo()}] [LOGS] Todos os logs foram deletados pelo usuário:`, req.usuario.username)
     res.json({ message: "Logs deletados com sucesso" })
   } catch (err) {
-    console.error("[LOGS] Erro ao deletar logs:", err)
+    console.error(`[${getDataSaoPaulo()}] [LOGS] Erro ao deletar logs:`, err)
     res.status(500).json({ error: "Erro ao deletar logs: " + err.message })
   }
 })
@@ -754,7 +823,7 @@ app.get("/pages/:page", (req, res) => {
 
 // ===== TRATAMENTO DE ERROS =====
 app.use((err, req, res, next) => {
-  console.error(err)
+  console.error(`[${getDataSaoPaulo()}] Erro interno:`, err)
   res.status(500).json({ error: "Erro interno do servidor" })
 })
 
@@ -764,8 +833,8 @@ app.use((req, res) => {
 
 // ===== INICIAR SERVIDOR =====
 app.listen(PORT, () => {
-  console.log(`Servidor Concretizza rodando na porta ${PORT}`)
-  console.log(`Ambiente: ${process.env.NODE_ENV || "development"}`)
+  console.log(`[${getDataSaoPaulo()}] Servidor Concretizza rodando na porta ${PORT}`)
+  console.log(`[${getDataSaoPaulo()}] Ambiente: ${process.env.NODE_ENV || "development"}`)
 })
 
 process.on("SIGINT", () => {

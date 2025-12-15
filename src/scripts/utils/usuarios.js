@@ -109,7 +109,7 @@ function atualizarTabela() {
     tbody.innerHTML = usuariosPagina
       .map((usr) => {
         const status = usr.status || "ativo"
-        const ultimoAcesso = usr.ultimo_acesso ? new Date(usr.ultimo_acesso).toLocaleDateString("pt-BR") : "-"
+        const ultimoAcesso = formatarDataSP(usr.ultimoAcesso)
         const cargoAlvo = usr.permissao?.toLowerCase()
         const podeEditarEste = cargoLogado === "head-admin" || (cargoLogado === "admin" && cargoAlvo !== "admin" && cargoAlvo !== "head-admin")
         const podeDeletarEste = cargoLogado === "head-admin" || (cargoLogado === "admin" && cargoAlvo !== "admin" && cargoAlvo !== "head-admin")
@@ -515,6 +515,30 @@ function editarUsuario(id) {
   document.getElementById("modalUsuario").style.display = "flex"
 }
 
+function obterPermissoesFormatadas(cargo) {
+  const permissoes = PERMISSIONS[cargo?.toLowerCase()] || {}
+  const tags = []
+
+  for (const [modulo, acoes] of Object.entries(permissoes)) {
+    if (Array.isArray(acoes) && acoes.length > 0) {
+      acoes.forEach((acao) => {
+        const iconMap = {
+          'create': 'fa-plus',
+          'read': 'fa-eye',
+          'update': 'fa-edit',
+          'delete': 'fa-trash',
+          'manage-admins': 'fa-user-shield'
+        }
+        const icon = iconMap[acao] || 'fa-check'
+        const label = acao === 'manage-admins' ? 'Gerenciar Admins' : acao.charAt(0).toUpperCase() + acao.slice(1)
+        tags.push(`<span class="permission-tag"><i class="fas ${icon}"></i> ${label} ${modulo}</span>`)
+      })
+    }
+  }
+
+  return tags.join('')
+}
+
 function abrirDetalhesUsuario(id) {
   const usr = usuarios.find((u) => u.id === id)
   if (!usr) return
@@ -528,7 +552,10 @@ function abrirDetalhesUsuario(id) {
   document.getElementById("detailDepartamento").textContent = usr.departamento || "-"
   document.getElementById("detailPermissao").textContent = formatarCargo(usr.permissao)
   document.getElementById("detailStatus").textContent = usr.status === "ativo" ? "Ativo" : "Inativo"
-  document.getElementById("detailUltimoAcesso").textContent = usr.ultimoAcesso ? new Date(usr.ultimoAcesso).toLocaleDateString("pt-BR") : "-"
+  document.getElementById("detailUltimoAcesso").textContent = formatarDataHoraSP(usr.ultimoAcesso)
+  
+  const permissoesHtml = obterPermissoesFormatadas(usr.permissao)
+  document.getElementById("detailPermissoes").innerHTML = permissoesHtml || '<span class="permission-tag">Nenhuma permissão atribuída</span>'
 
   document.getElementById("modalDetalhesUsuario").style.display = "flex"
 }

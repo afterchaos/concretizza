@@ -8,6 +8,18 @@ const pool = new Pool({
 
 const BCRYPT_ROUNDS = 10
 
+function getDataSaoPaulo() {
+  return new Date().toLocaleString('pt-BR', { 
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  })
+}
+
 const usuariosPadrao = [
   {
     nome: "Head Admin",
@@ -52,15 +64,15 @@ async function seedDatabase() {
           [usuario.nome, usuario.email, usuario.username, senhaHash, usuario.permissao, "ativo"]
         )
 
-        console.log(`✓ Usuário ${usuario.username} criado/atualizado`)
+        console.log(`[${getDataSaoPaulo()}] ✓ Usuário ${usuario.username} criado/atualizado`)
       } catch (error) {
-        console.error(`✗ Erro ao criar usuário ${usuario.username}:`, error.message)
+        console.error(`[${getDataSaoPaulo()}] ✗ Erro ao criar usuário ${usuario.username}:`, error.message)
       }
     }
 
-    console.log("✓ Seed concluído com sucesso!")
+    console.log(`[${getDataSaoPaulo()}] ✓ Seed concluído com sucesso!`)
   } catch (error) {
-    console.error("Erro durante seed:", error)
+    console.error(`[${getDataSaoPaulo()}] Erro durante seed:`, error)
   } finally {
     await pool.end()
     process.exit(0)
@@ -68,6 +80,6 @@ async function seedDatabase() {
 }
 
 seedDatabase().catch((error) => {
-  console.error("Erro durante seed:", error)
+  console.error(`[${getDataSaoPaulo()}] Erro durante seed:`, error)
   process.exit(1)
 })

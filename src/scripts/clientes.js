@@ -117,17 +117,30 @@ function atualizarTabela() {
   const usuarioLogado = obterUsuarioLogado()
   const podeEditar = obterPermissao(usuarioLogado, "clientes", "update")
   const podeDeletar = obterPermissao(usuarioLogado, "clientes", "delete")
+  const isAdminOrHead = isAdminOrHeadAdmin()
+  const isCorretor = usuarioLogado?.cargo?.toLowerCase() === "corretor"
+  
+  const headerCadastradoPor = document.getElementById("headerCadastradoPor")
+  if (headerCadastradoPor) {
+    headerCadastradoPor.style.display = isAdminOrHead ? "" : "none"
+  }
 
   const inicio = (currentPage - 1) * itensPorPagina
   const fim = inicio + itensPorPagina
   const clientesPagina = clientesFiltrados.slice(inicio, fim)
 
+  const colspan = isAdminOrHead ? 9 : 8
+
   if (clientesPagina.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" class="text-center">Nenhum cliente encontrado</td></tr>'
+    tbody.innerHTML = `<tr><td colspan="${colspan}" class="text-center">Nenhum cliente encontrado</td></tr>`
   } else {
     tbody.innerHTML = clientesPagina
       .map(
-        (cliente) => `
+        (cliente) => {
+          const podeEditarEste = podeEditar && (!isCorretor || cliente.usuario_id === usuarioLogado.id)
+          const podeDeletarEste = podeDeletar && (!isCorretor || cliente.usuario_id === usuarioLogado.id)
+          
+          return `
       <tr onclick="abrirDetalhesCliente(${cliente.id})" style="cursor: pointer;">
         <td onclick="event.stopPropagation();">
           <input type="checkbox" class="checkbox-input cliente-checkbox" data-id="${cliente.id}">
@@ -138,16 +151,18 @@ function atualizarTabela() {
         <td><span class="badge badge-${cliente.status}">${formatarStatus(cliente.status)}</span></td>
         <td>${cliente.email || "-"}</td>
         <td>${formatarData(cliente.data)}</td>
+        ${isAdminOrHead ? `<td>${cliente.cadastrado_por || "-"}</td>` : ""}
         <td onclick="event.stopPropagation();">
-          ${podeEditar ? `<button class="btn-action btn-edit" onclick="editarCliente(${cliente.id})" title="Editar">
+          ${podeEditarEste ? `<button class="btn-action btn-edit" onclick="editarCliente(${cliente.id})" title="Editar">
             <i class="fas fa-edit"></i> Editar
           </button>` : ""}
-          ${podeDeletar ? `<button class="btn-action btn-delete" onclick="excluirClienteConfirm(${cliente.id})" title="Excluir">
+          ${podeDeletarEste ? `<button class="btn-action btn-delete" onclick="excluirClienteConfirm(${cliente.id})" title="Excluir">
             <i class="fas fa-trash"></i> Excluir
           </button>` : ""}
         </td>
       </tr>
     `
+        }
       )
       .join("")
   }
@@ -404,6 +419,14 @@ function editarCliente(id) {
   const cliente = clientes.find((c) => c.id === id)
   if (!cliente) return
 
+  const usuarioLogado = obterUsuarioLogado()
+  const isCorretor = usuarioLogado?.cargo?.toLowerCase() === "corretor"
+  
+  if (isCorretor && cliente.usuario_id !== usuarioLogado.id) {
+    mostrarNotificacao("Você não tem permissão para editar este cliente", "erro")
+    return
+  }
+
   clienteEmEdicao = id
   document.getElementById("modalTitle").textContent = "Editar Cliente"
   document.getElementById("clienteNome").value = cliente.nome
@@ -433,6 +456,26 @@ function abrirDetalhesCliente(id) {
   document.getElementById("detailData").textContent = formatarData(cliente.data)
   document.getElementById("detailStatus").textContent = formatarStatus(cliente.status)
   document.getElementById("detailObservacoes").textContent = cliente.observacoes || "-"
+  
+  const usuarioLogado = obterUsuarioLogado()
+  const podeEditar = obterPermissao(usuarioLogado, "clientes", "update")
+  const isCorretor = usuarioLogado?.cargo?.toLowerCase() === "corretor"
+  
+  const btnEditarDetalhes = document.getElementById("btnEditarDetalhes")
+  if (btnEditarDetalhes) {
+    const podeEditarEste = podeEditar && (!isCorretor || cliente.usuario_id === usuarioLogado.id)
+    btnEditarDetalhes.style.display = podeEditarEste ? "" : "none"
+  }
+  
+  const detailCadastradoPorContainer = document.getElementById("detailCadastradoPorContainer")
+  if (detailCadastradoPorContainer) {
+    if (isAdminOrHeadAdmin()) {
+      detailCadastradoPorContainer.style.display = ""
+      document.getElementById("detailCadastradoPor").textContent = cliente.cadastrado_por || "-"
+    } else {
+      detailCadastradoPorContainer.style.display = "none"
+    }
+  }
 
   document.getElementById("modalDetalhesCliente").style.display = "flex"
 }
@@ -440,6 +483,14 @@ function abrirDetalhesCliente(id) {
 async function excluirClienteConfirm(id) {
   const cliente = clientes.find((c) => c.id === id)
   if (!cliente) return
+
+  const usuarioLogado = obterUsuarioLogado()
+  const isCorretor = usuarioLogado?.cargo?.toLowerCase() === "corretor"
+  
+  if (isCorretor && cliente.usuario_id !== usuarioLogado.id) {
+    mostrarNotificacao("Você não tem permissão para deletar este cliente", "erro")
+    return
+  }
 
   document.getElementById("nomeClienteExcluir").textContent = cliente.nome
   document.getElementById("btnConfirmarExclusao").onclick = () => excluirCliente(id)

@@ -163,6 +163,7 @@
                                 <th>Status</th>
                                 <th>Email</th>
                                 <th>Data</th>
+                                <th id="headerCadastradoPor" style="display: none;">Cad. por</th>
                                 <th>Ações</th>
                             </tr>
                         </thead>
@@ -322,6 +323,16 @@
                         </div>
                     </div>
                     
+                    <div class="detail-item" id="detailCadastradoPorContainer" style="display: none;">
+                        <div class="detail-icon">
+                            <i class="fas fa-user-check"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Cadastrado por</span>
+                            <span class="detail-value" id="detailCadastradoPor">-</span>
+                        </div>
+                    </div>
+                    
                     <div class="detail-item detail-full">
                         <div class="detail-icon">
                             <i class="fas fa-file-alt"></i>
@@ -334,7 +345,7 @@
                 </div>
                 
                 <div class="details-actions">
-                    <button class="btn-primary" id="btnEditarDetalhes">
+                    <button class="btn-primary" id="btnEditarDetalhes" style="display: none;">
                         <i class="fas fa-edit"></i> Editar Cliente
                     </button>
                     <button class="btn-secondary" id="btnFecharDetalhes">

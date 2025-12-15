@@ -1,3 +1,43 @@
+const TIMEZONE_SAO_PAULO = 'America/Sao_Paulo'
+
+function obterDataComTimezoneSP() {
+  return new Date().toLocaleString('pt-BR', { timeZone: TIMEZONE_SAO_PAULO })
+}
+
+function formatarDataSP(data) {
+  if (!data) return '-'
+  try {
+    const d = new Date(data)
+    return d.toLocaleDateString('pt-BR', { timeZone: TIMEZONE_SAO_PAULO })
+  } catch (e) {
+    return '-'
+  }
+}
+
+function formatarDataHoraSP(data) {
+  if (!data) return '-'
+  try {
+    const d = new Date(data)
+    return d.toLocaleString('pt-BR', { 
+      timeZone: TIMEZONE_SAO_PAULO,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    })
+  } catch (e) {
+    return '-'
+  }
+}
+
+function obterDataISO_SP() {
+  const now = new Date()
+  const sp = new Date(now.toLocaleString('pt-BR', { timeZone: TIMEZONE_SAO_PAULO }))
+  return sp.toISOString()
+}
+
 function mostrarNotificacao(mensagem, tipo = 'info', duracao = 4000) {
   const container = document.getElementById("toastNotification")
   if (!container) return
