@@ -45,7 +45,13 @@ async function carregarLogs() {
   try {
     const logsApi = await fazerRequisicao("/api/logs")
     logs = logsApi || []
-    atualizarTabela()
+    const search = document.getElementById("searchLogs").value
+    const filterAcao = document.getElementById("filterAcao").value
+    if (search || filterAcao) {
+      filtrarLogs()
+    } else {
+      atualizarTabela()
+    }
   } catch (error) {
     console.error("Erro ao carregar logs:", error)
     mostrarNotificacao("Erro ao carregar logs do servidor", "erro")
@@ -60,20 +66,24 @@ function atualizarTabela() {
     return
   }
 
-  tbody.innerHTML = logs
-    .slice()
-    .reverse()
-    .map((log) => {
-      const index = logs.indexOf(log)
-      const acaoBadge = obterBadgeAcao(log.acao)
+  const logsComIndice = logs.map((log, index) => ({ ...log, index }))
+  
+  tbody.innerHTML = logsComIndice
+    .sort((a, b) => {
+      const dataA = new Date(a.criado_em || 0)
+      const dataB = new Date(b.criado_em || 0)
+      return dataB - dataA
+    })
+    .map((logWithIndex) => {
+      const acaoBadge = obterBadgeAcao(logWithIndex.acao)
       return `
-        <tr onclick="abrirDetalhesLog(${index})">
+        <tr data-index="${logWithIndex.index}" onclick="abrirDetalhesLog(this.dataset.index)" style="cursor: pointer;">
           <td>${acaoBadge}</td>
-          <td><span class="badge badge-info">${log.modulo || "-"}</span></td>
-          <td>${log.dataFormatada || "-"} ${log.horaFormatada || "-"}</td>
-          <td><strong>${log.usuarioLogado || "-"}</strong></td>
-          <td>${log.usuarioAfetado || "-"}</td>
-          <td>${log.descricao || "-"}</td>
+          <td><span class="badge badge-info">${logWithIndex.modulo || "-"}</span></td>
+          <td>${logWithIndex.dataFormatada || "-"} ${logWithIndex.horaFormatada || "-"}</td>
+          <td><strong>${logWithIndex.usuarioLogado || "-"}</strong></td>
+          <td>${logWithIndex.usuarioAfetado || "-"}</td>
+          <td>${logWithIndex.descricao || "-"}</td>
         </tr>
       `
     })
@@ -87,7 +97,7 @@ function obterIconoAcao(acao) {
     "CRIAR": "fa-plus",
     "EDITAR": "fa-edit",
     "DELETAR": "fa-trash",
-    "LOGOUT": "fa-sign-out-alt"
+    "LOGIN": "fa-sign-in-alt"
   }
   return iconMap[acao] || "fa-circle"
 }
@@ -96,7 +106,8 @@ function obterBadgeAcao(acao) {
   const colors = {
     "CRIAR": "badge-success",
     "EDITAR": "badge-info",
-    "DELETAR": "badge-danger"
+    "DELETAR": "badge-danger",
+    "LOGIN": "badge-primary"
   }
   const cor = colors[acao] || "badge-secondary"
   const icone = obterIconoAcao(acao)
@@ -160,11 +171,35 @@ function configurarEventos() {
         mostrarNotificacao("Admin não tem permissão para deletar logs", "aviso")
         return
       }
-      if (confirm("Tem certeza que deseja limpar todos os logs?")) {
-        limparLogs()
-      }
+      document.getElementById("modalConfirmacaoDeleteLogs").style.display = "flex"
     })
   }
+
+  const closeConfirmacaoDeleteLogs = document.getElementById("closeConfirmacaoDeleteLogs")
+  if (closeConfirmacaoDeleteLogs) {
+    closeConfirmacaoDeleteLogs.addEventListener("click", () => {
+      document.getElementById("modalConfirmacaoDeleteLogs").style.display = "none"
+    })
+  }
+
+  const btnCancelarDeleteLogs = document.getElementById("btnCancelarDeleteLogs")
+  if (btnCancelarDeleteLogs) {
+    btnCancelarDeleteLogs.addEventListener("click", () => {
+      document.getElementById("modalConfirmacaoDeleteLogs").style.display = "none"
+    })
+  }
+
+  const btnConfirmarDeleteLogs = document.getElementById("btnConfirmarDeleteLogs")
+  if (btnConfirmarDeleteLogs) {
+    btnConfirmarDeleteLogs.addEventListener("click", limparLogs)
+  }
+
+  window.addEventListener("click", (e) => {
+    const modal = document.getElementById("modalConfirmacaoDeleteLogs")
+    if (e.target === modal) {
+      modal.style.display = "none"
+    }
+  })
 
   const btnExportarLogs = document.getElementById("btnExportarLogs")
   if (btnExportarLogs) {
@@ -187,6 +222,13 @@ function configurarEventos() {
       document.getElementById("modalDetalhesLog").style.display = "none"
     })
   }
+
+  const btnFecharDetalhesLog = document.getElementById("btnFecharDetalhesLog")
+  if (btnFecharDetalhesLog) {
+    btnFecharDetalhesLog.addEventListener("click", () => {
+      document.getElementById("modalDetalhesLog").style.display = "none"
+    })
+  }
   
   window.addEventListener("click", (e) => {
     const modal = document.getElementById("modalDetalhesLog")
@@ -206,6 +248,7 @@ function filtrarLogs() {
       log.acao?.toLowerCase().includes(search) ||
       log.modulo?.toLowerCase().includes(search) ||
       log.usuarioLogado?.toLowerCase().includes(search) ||
+      log.usuarioAfetado?.toLowerCase().includes(search) ||
       log.descricao?.toLowerCase().includes(search)
     
     return matchAcao && matchSearch
@@ -214,27 +257,38 @@ function filtrarLogs() {
   const tbody = document.getElementById("logsTable")
   if (logsFiltrados.length === 0) {
     tbody.innerHTML = '<tr><td colspan="6" class="text-center">Nenhum log encontrado</td></tr>'
+    atualizarEstatisticas()
     return
   }
 
-  tbody.innerHTML = logsFiltrados
-    .slice()
-    .reverse()
-    .map((log) => {
-      const index = logs.indexOf(log)
-      const acaoBadge = obterBadgeAcao(log.acao)
+  const logsComIndice = logsFiltrados
+    .sort((a, b) => {
+      const dataA = new Date(a.criado_em || 0)
+      const dataB = new Date(b.criado_em || 0)
+      return dataB - dataA
+    })
+    .map((log, displayIndex) => {
+      const originalIndex = logs.indexOf(log)
+      return { ...log, displayIndex, originalIndex }
+    })
+
+  tbody.innerHTML = logsComIndice
+    .map((logWithIndex) => {
+      const acaoBadge = obterBadgeAcao(logWithIndex.acao)
       return `
-        <tr onclick="abrirDetalhesLog(${index})">
+        <tr data-index="${logWithIndex.originalIndex}" onclick="abrirDetalhesLog(this.dataset.index)" style="cursor: pointer;">
           <td>${acaoBadge}</td>
-          <td><span class="badge badge-info">${log.modulo || "-"}</span></td>
-          <td>${log.dataFormatada || "-"} ${log.horaFormatada || "-"}</td>
-          <td><strong>${log.usuarioLogado || "-"}</strong></td>
-          <td>${log.usuarioAfetado || "-"}</td>
-          <td>${log.descricao || "-"}</td>
+          <td><span class="badge badge-info">${logWithIndex.modulo || "-"}</span></td>
+          <td>${logWithIndex.dataFormatada || "-"} ${logWithIndex.horaFormatada || "-"}</td>
+          <td><strong>${logWithIndex.usuarioLogado || "-"}</strong></td>
+          <td>${logWithIndex.usuarioAfetado || "-"}</td>
+          <td>${logWithIndex.descricao || "-"}</td>
         </tr>
       `
     })
     .join("")
+  
+  atualizarEstatisticas()
 }
 
 function exportarLogs() {
@@ -258,11 +312,21 @@ function exportarLogs() {
   link.click()
 }
 
-function limparLogs() {
-  localStorage.removeItem("logs")
-  logs = []
-  atualizarTabela()
-  mostrarNotificacao("Logs limpos com sucesso!", "sucesso")
+async function limparLogs() {
+  try {
+    document.getElementById("modalConfirmacaoDeleteLogs").style.display = "none"
+    
+    await fazerRequisicao("/api/logs", {
+      method: "DELETE"
+    })
+    
+    logs = []
+    atualizarTabela()
+    mostrarNotificacao("Logs deletados com sucesso!", "sucesso")
+  } catch (error) {
+    console.error("Erro ao deletar logs:", error)
+    mostrarNotificacao("Erro ao deletar logs do servidor", "erro")
+  }
 }
 
 function adicionarLog(usuario, acao, modulo, descricao) {
@@ -296,23 +360,29 @@ function formatarCargo(cargo) {
 }
 
 function abrirDetalhesLog(index) {
-  const log = logs[index]
+  const logIndex = parseInt(index, 10)
+  const log = logs[logIndex]
   if (!log) return
 
+  const detailAcaoBadgeHeader = document.getElementById("detailAcaoBadgeHeader")
+  const detailModuloHeader = document.getElementById("detailModuloHeader")
+  const detailDataHoraHeader = document.getElementById("detailDataHoraHeader")
   const detailAcao = document.getElementById("detailAcao")
   const detailModulo = document.getElementById("detailModulo")
-  const detailDataHora = document.getElementById("detailDataHora")
   const detailUsuario = document.getElementById("detailUsuario")
   const detailAfetado = document.getElementById("detailAfetado")
   const detailDescricao = document.getElementById("detailDescricao")
   const modal = document.getElementById("modalDetalhesLog")
 
-  if (detailAcao) detailAcao.textContent = log.acao
-  if (detailModulo) detailModulo.textContent = log.modulo
-  if (detailDataHora) detailDataHora.textContent = `${log.dataFormatada} ${log.horaFormatada}`
-  if (detailUsuario) detailUsuario.textContent = log.usuarioLogado
-  if (detailAfetado) detailAfetado.textContent = log.usuarioAfetado || "N/A"
-  if (detailDescricao) detailDescricao.textContent = log.descricao
+  const acaoBadge = obterBadgeAcao(log.acao)
+  if (detailAcaoBadgeHeader) detailAcaoBadgeHeader.innerHTML = acaoBadge
+  if (detailModuloHeader) detailModuloHeader.textContent = log.modulo || "-"
+  if (detailDataHoraHeader) detailDataHoraHeader.innerHTML = `<i class="fas fa-clock"></i> ${log.dataFormatada} ${log.horaFormatada}`
+  if (detailAcao) detailAcao.textContent = log.acao || "-"
+  if (detailModulo) detailModulo.textContent = log.modulo || "-"
+  if (detailUsuario) detailUsuario.textContent = log.usuarioLogado || "-"
+  if (detailAfetado) detailAfetado.textContent = log.usuarioAfetado || "-"
+  if (detailDescricao) detailDescricao.textContent = log.descricao || "-"
   
   if (modal) modal.style.display = "flex"
 }

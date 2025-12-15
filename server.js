@@ -2,12 +2,12 @@ require("dotenv").config()
 const express = require("express")
 const path = require("path")
 const fs = require("fs")
-const { Pool } = require("pg")
 const bcrypt = require("bcryptjs")
 const jwt = require("jsonwebtoken")
 const { body, validationResult, param } = require("express-validator")
 const cors = require("cors")
 const rateLimit = require("express-rate-limit")
+const db = require("./db")
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -50,6 +50,7 @@ app.use((req, res, next) => {
 
 app.use(express.static(path.join(__dirname, "src")))
 app.use("/src", express.static(path.join(__dirname, "src")))
+app.use("/styles", express.static(path.join(__dirname, "src/styles")))
 app.use(express.static(path.join(__dirname)))
 
 // ===== MIDDLEWARE DE AUTENTICAÇÃO JWT =====
@@ -95,66 +96,25 @@ function validarRequisicao(req, res, next) {
   next()
 }
 
-// ===== INICIALIZAR BANCO DE DADOS =====
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-})
+const pool = db.pool
 
-pool.on('error', (err) => {
-  console.error('❌ Erro no pool PostgreSQL:', err.message)
-})
-
-pool.on('connect', () => {
-  console.log('✓ PostgreSQL conectado')
-})
-
-const db = {
-  get: (sql, params, callback) => {
-    if (typeof params === 'function') {
-      callback = params
-      params = []
+function dbQuery(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    if (db.isPostgres && pool) {
+      pool.query(sql, params, (err, result) => {
+        if (err) reject(err)
+        else resolve(result)
+      })
+    } else {
+      db.query(sql, params).then(resolve).catch(reject)
     }
-    if (!callback) {
-      callback = () => {}
-    }
-    pool.query(sql, params, (err, result) => {
-      if (err) return callback(err)
-      callback(null, result.rows[0])
-    })
-  },
-  all: (sql, params, callback) => {
-    if (typeof params === 'function') {
-      callback = params
-      params = []
-    }
-    if (!callback) {
-      callback = () => {}
-    }
-    pool.query(sql, params, (err, result) => {
-      if (err) return callback(err)
-      callback(null, result.rows)
-    })
-  },
-  run: (sql, params, callback) => {
-    if (typeof params === 'function') {
-      callback = params
-      params = []
-    }
-    if (!callback) {
-      callback = () => {}
-    }
-    pool.query(sql, params, (err, result) => {
-      if (err) return callback(err)
-      callback(null, { lastID: result.rows[0]?.id, changes: result.rowCount })
-    })
-  }
+  })
 }
 
 // ===== CRIAR TABELAS =====
 async function initializeTables() {
   try {
-    await pool.query(`
+    await dbQuery(`
       CREATE TABLE IF NOT EXISTS usuarios (
         id SERIAL PRIMARY KEY,
         nome TEXT NOT NULL,
@@ -172,7 +132,7 @@ async function initializeTables() {
     `)
     console.log("✓ Tabela usuarios criada")
 
-    await pool.query(`
+    await dbQuery(`
       CREATE TABLE IF NOT EXISTS clientes (
         id SERIAL PRIMARY KEY,
         nome TEXT NOT NULL,
@@ -190,7 +150,7 @@ async function initializeTables() {
     `)
     console.log("✓ Tabela clientes criada")
 
-    await pool.query(`
+    await dbQuery(`
       CREATE TABLE IF NOT EXISTS agendamentos (
         id SERIAL PRIMARY KEY,
         cliente_id INTEGER NOT NULL REFERENCES clientes(id),
@@ -206,7 +166,7 @@ async function initializeTables() {
     `)
     console.log("✓ Tabela agendamentos criada")
 
-    await pool.query(`
+    await dbQuery(`
       CREATE TABLE IF NOT EXISTS logs_auditoria (
         id SERIAL PRIMARY KEY,
         usuario_id INTEGER REFERENCES usuarios(id),
@@ -221,7 +181,7 @@ async function initializeTables() {
     
     // Garantir que a coluna usuario_afetado exista (migração)
     try {
-      await pool.query("ALTER TABLE logs_auditoria ADD COLUMN IF NOT EXISTS usuario_afetado TEXT")
+      await dbQuery("ALTER TABLE logs_auditoria ADD COLUMN IF NOT EXISTS usuario_afetado TEXT")
     } catch (e) {
       console.log("Nota: Coluna usuario_afetado já existe ou erro ao adicionar:", e.message)
     }
@@ -237,7 +197,7 @@ async function registrarLog(usuarioId, acao, modulo, descricao, usuarioAfetado =
   try {
     const ip = req ? (req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for']?.split(',')[0]?.trim()) : null
     
-    await pool.query(
+    await dbQuery(
       "INSERT INTO logs_auditoria (usuario_id, acao, modulo, descricao, usuario_afetado, ip_address) VALUES ($1, $2, $3, $4, $5, $6)",
       [usuarioId, acao, modulo, descricao, usuarioAfetado, ip]
     )
@@ -283,19 +243,22 @@ const usuariosPadrao = [
 
 async function seedDefaultUsers() {
   try {
-    const result = await pool.query("SELECT COUNT(*) as count FROM usuarios")
+    const result = await dbQuery("SELECT COUNT(*) as count FROM usuarios")
     const count = parseInt(result.rows[0].count)
 
     if (count === 0) {
       console.log("📝 Criando usuários padrão...")
       for (const usuario of usuariosPadrao) {
         const senhaHash = await bcrypt.hash(usuario.password, BCRYPT_ROUNDS)
-        await pool.query(
-          `INSERT INTO usuarios (nome, email, username, senha, permissao, status)
-           VALUES ($1, $2, $3, $4, $5, $6)
-           ON CONFLICT (username) DO NOTHING`,
-          [usuario.nome, usuario.email, usuario.username, senhaHash, usuario.permissao, "ativo"]
-        )
+        try {
+          await dbQuery(
+            `INSERT INTO usuarios (nome, email, username, senha, permissao, status)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [usuario.nome, usuario.email, usuario.username, senhaHash, usuario.permissao, "ativo"]
+          )
+        } catch (e) {
+          if (!e.message.includes("UNIQUE")) throw e
+        }
         console.log(`  ✓ ${usuario.username}`)
       }
       console.log("✓ Usuários padrão criados com sucesso!")
@@ -439,7 +402,7 @@ app.post(
     console.log("[CLIENTES] Criando novo cliente:", { nome, telefone, email, interesse, valor, status, observacoes, data })
     
     try {
-      const result = await pool.query(
+      const result = await dbQuery(
         "INSERT INTO clientes (nome, telefone, email, interesse, valor, status, observacoes, data, usuario_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
         [nome, telefone, email || null, interesse, valor || null, status, observacoes || null, data, req.usuario.id]
       )
@@ -469,7 +432,7 @@ app.put(
     const { nome, telefone, email, interesse, valor, status, observacoes } = req.body
     
     try {
-      const result = await pool.query(
+      const result = await dbQuery(
         "UPDATE clientes SET nome = $1, telefone = $2, email = $3, interesse = $4, valor = $5, status = $6, observacoes = $7, atualizado_em = CURRENT_TIMESTAMP WHERE id = $8",
         [nome, telefone, email, interesse, valor, status, observacoes, id]
       )
@@ -493,11 +456,11 @@ app.delete(
     const { id } = req.params
     
     try {
-      const clienteResult = await pool.query("SELECT nome FROM clientes WHERE id = $1", [id])
+      const clienteResult = await dbQuery("SELECT nome FROM clientes WHERE id = $1", [id])
       const cliente = clienteResult.rows[0]
       const clienteNome = cliente?.nome || id
       
-      const deleteResult = await pool.query("DELETE FROM clientes WHERE id = $1", [id])
+      const deleteResult = await dbQuery("DELETE FROM clientes WHERE id = $1", [id])
       
       if (deleteResult.rowCount === 0) {
         return res.status(404).json({ error: "Cliente não encontrado" })
@@ -556,7 +519,7 @@ app.post(
         })
       })
 
-      const result = await pool.query(
+      const result = await dbQuery(
         "INSERT INTO usuarios (nome, email, username, senha, permissao, status, telefone, departamento) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
         [nome, email, username, senhaHash, permissao.toLowerCase(), status || "ativo", telefone || null, departamento || null]
       )
@@ -586,7 +549,7 @@ app.put(
     const usuarioIdSendoEditado = parseInt(id)
 
     try {
-      const userResult = await pool.query("SELECT permissao, nome as nome_atual FROM usuarios WHERE id = $1", [usuarioIdSendoEditado])
+      const userResult = await dbQuery("SELECT permissao, nome as nome_atual FROM usuarios WHERE id = $1", [usuarioIdSendoEditado])
       const usuarioAlvo = userResult.rows[0]
 
       if (!usuarioAlvo) return res.status(404).json({ error: "Usuário não encontrado" })
@@ -609,12 +572,12 @@ app.put(
 
       let result
       if (password) {
-        result = await pool.query(
+        result = await dbQuery(
           "UPDATE usuarios SET nome = $1, email = $2, senha = $3, permissao = $4, status = $5, telefone = $6, departamento = $7, atualizado_em = CURRENT_TIMESTAMP WHERE id = $8",
           [nome, email, senhaHash, permissao.toLowerCase(), status, telefone, departamento, id]
         )
       } else {
-        result = await pool.query(
+        result = await dbQuery(
           "UPDATE usuarios SET nome = $1, email = $2, permissao = $3, status = $4, telefone = $5, departamento = $6, atualizado_em = CURRENT_TIMESTAMP WHERE id = $7",
           [nome, email, permissao.toLowerCase(), status, telefone, departamento, id]
         )
@@ -651,11 +614,10 @@ app.delete(
       return res.status(400).json({ error: "Você não pode deletar sua própria conta" })
     }
 
-    const client = await pool.connect()
-
+    let client = null
     try {
       // Verificar usuário alvo e permissões
-      const userResult = await client.query("SELECT permissao, nome FROM usuarios WHERE id = $1", [usuarioId])
+      const userResult = await dbQuery("SELECT permissao, nome FROM usuarios WHERE id = $1", [usuarioId])
       const usuarioAlvo = userResult.rows[0]
 
       if (!usuarioAlvo) {
@@ -671,38 +633,66 @@ app.delete(
         return res.status(403).json({ error: "Admin não pode deletar usuários com cargo igual ou superior" })
       }
 
-      // Iniciar transação
-      await client.query('BEGIN')
+      // Para PostgreSQL, usar transações; para SQLite, executar sequencialmente
+      if (db.isPostgres) {
+        client = await pool.connect()
+        await client.query('BEGIN')
 
-      // 1. Remover agendamentos do usuário
-      await client.query("DELETE FROM agendamentos WHERE usuario_id = $1", [usuarioId])
+        // 1. Remover agendamentos do usuário
+        await client.query("DELETE FROM agendamentos WHERE usuario_id = $1", [usuarioId])
 
-      // 2. Desvincular clientes (setar usuario_id = NULL)
-      await client.query("UPDATE clientes SET usuario_id = NULL WHERE usuario_id = $1", [usuarioId])
+        // 2. Desvincular clientes (setar usuario_id = NULL)
+        await client.query("UPDATE clientes SET usuario_id = NULL WHERE usuario_id = $1", [usuarioId])
 
-      // 3. Desvincular logs de auditoria
-      await client.query("UPDATE logs_auditoria SET usuario_id = NULL WHERE usuario_id = $1", [usuarioId])
+        // 3. Desvincular logs de auditoria
+        await client.query("UPDATE logs_auditoria SET usuario_id = NULL WHERE usuario_id = $1", [usuarioId])
 
-      // 4. Deletar o usuário
-      const deleteResult = await client.query("DELETE FROM usuarios WHERE id = $1", [usuarioId])
+        // 4. Deletar o usuário
+        const deleteResult = await client.query("DELETE FROM usuarios WHERE id = $1", [usuarioId])
 
-      if (deleteResult.rowCount === 0) {
-        await client.query('ROLLBACK')
-        return res.status(404).json({ error: "Usuário não encontrado durante a exclusão" })
+        if (deleteResult.rowCount === 0) {
+          await client.query('ROLLBACK')
+          return res.status(404).json({ error: "Usuário não encontrado durante a exclusão" })
+        }
+
+        await client.query('COMMIT')
+      } else {
+        // SQLite: executar operações sequencialmente
+        // 1. Remover agendamentos do usuário
+        await dbQuery("DELETE FROM agendamentos WHERE usuario_id = $1", [usuarioId])
+
+        // 2. Desvincular clientes (setar usuario_id = NULL)
+        await dbQuery("UPDATE clientes SET usuario_id = NULL WHERE usuario_id = $1", [usuarioId])
+
+        // 3. Desvincular logs de auditoria
+        await dbQuery("UPDATE logs_auditoria SET usuario_id = NULL WHERE usuario_id = $1", [usuarioId])
+
+        // 4. Deletar o usuário
+        const deleteResult = await dbQuery("DELETE FROM usuarios WHERE id = $1", [usuarioId])
+
+        if (deleteResult.rowCount === 0) {
+          return res.status(404).json({ error: "Usuário não encontrado durante a exclusão" })
+        }
       }
-
-      await client.query('COMMIT')
       
       console.log("[DELETE USUARIO] Usuário e dados relacionados processados com sucesso")
       await registrarLog(req.usuario.id, "DELETAR", "Usuários", `Usuário deletado: ${usuarioId}`, usuarioAlvo?.nome || usuarioId, req)
       res.json({ success: true, message: "Usuário deletado com sucesso" })
 
     } catch (err) {
-      await client.query('ROLLBACK')
+      if (client && db.isPostgres) {
+        try {
+          await client.query('ROLLBACK')
+        } catch (e) {
+          console.error("[DELETE USUARIO] Erro ao fazer ROLLBACK:", e)
+        }
+      }
       console.error("[DELETE USUARIO] Erro ao deletar:", err)
       res.status(500).json({ error: "Erro ao deletar usuário: " + err.message })
     } finally {
-      client.release()
+      if (client) {
+        client.release()
+      }
     }
   }
 )
@@ -710,7 +700,7 @@ app.delete(
 // ===== ROTAS DE LOGS =====
 app.get("/api/logs", autenticar, autorizar("head-admin", "admin"), async (req, res) => {
   try {
-    const result = await pool.query(
+    const result = await dbQuery(
       `SELECT l.*, u.nome as usuario_nome, u.username as usuario_username 
        FROM logs_auditoria l 
        LEFT JOIN usuarios u ON l.usuario_id = u.id 
@@ -728,7 +718,8 @@ app.get("/api/logs", autenticar, autorizar("head-admin", "admin"), async (req, r
         usuarioAfetado: log.usuario_afetado,
         dataFormatada: data.toLocaleDateString('pt-BR'),
         horaFormatada: data.toLocaleTimeString('pt-BR'),
-        ip: log.ip_address
+        ip: log.ip_address,
+        criado_em: log.criado_em
       }
     })
     
@@ -736,6 +727,18 @@ app.get("/api/logs", autenticar, autorizar("head-admin", "admin"), async (req, r
   } catch (err) {
     console.error("[LOGS] Erro ao buscar logs:", err)
     res.status(500).json({ error: "Erro ao buscar logs: " + err.message })
+  }
+})
+
+app.delete("/api/logs", autenticar, autorizar("head-admin", "admin"), async (req, res) => {
+  try {
+    await dbQuery(`DELETE FROM logs_auditoria`)
+    
+    console.log("[LOGS] Todos os logs foram deletados pelo usuário:", req.usuario.username)
+    res.json({ message: "Logs deletados com sucesso" })
+  } catch (err) {
+    console.error("[LOGS] Erro ao deletar logs:", err)
+    res.status(500).json({ error: "Erro ao deletar logs: " + err.message })
   }
 })
 
@@ -766,6 +769,6 @@ app.listen(PORT, () => {
 })
 
 process.on("SIGINT", () => {
-  db.close()
+  pool.end()
   process.exit()
 })

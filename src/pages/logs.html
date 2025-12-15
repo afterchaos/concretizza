@@ -117,11 +117,7 @@
                         <option value="CRIAR">Criar</option>
                         <option value="EDITAR">Editar</option>
                         <option value="DELETAR">Deletar</option>
-                        <option value="TENTATIVA_DELETAR">Tentativa de Deletar</option>
-                        <option value="TENTATIVA_SELF_DELETE">Tentativa de Self-Delete</option>
-                        <option value="TENTATIVA_DELETAR_ADMIN">Tentativa de Deletar Admin</option>
-                        <option value="FALHA_AUTENTICACAO_DELETE">Falha de Autenticação</option>
-                        <option value="ERRO">Erro</option>
+                        <option value="LOGIN">Login</option>
                     </select>
                 </div>
 
@@ -183,37 +179,99 @@
     </div>
 
     <div id="modalDetalhesLog" class="modal">
-        <div class="modal-content">
+        <div class="modal-content modal-details">
             <div class="modal-header">
-                <h2>Detalhes do Log</h2>
+                <div class="log-header-info">
+                    <div id="detailAcaoBadgeHeader"></div>
+                    <h2 id="detailModuloHeader">-</h2>
+                </div>
                 <button class="modal-close" id="closeDetalhesLog">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="log-details-grid">
+                <div class="log-meta-info">
+                    <span id="detailDataHoraHeader" class="meta-item"><i class="fas fa-clock"></i> -</span>
+                </div>
+
+                <div class="details-grid">
                     <div class="detail-item">
-                        <label>Ação:</label>
-                        <span id="detailAcao"></span>
+                        <div class="detail-icon">
+                            <i class="fas fa-square-check"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Ação</span>
+                            <span class="detail-value" id="detailAcao">-</span>
+                        </div>
                     </div>
+
                     <div class="detail-item">
-                        <label>Módulo:</label>
-                        <span id="detailModulo"></span>
+                        <div class="detail-icon">
+                            <i class="fas fa-cubes"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Módulo</span>
+                            <span class="detail-value" id="detailModulo">-</span>
+                        </div>
                     </div>
+
                     <div class="detail-item">
-                        <label>Data/Hora:</label>
-                        <span id="detailDataHora"></span>
+                        <div class="detail-icon">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Usuário Logado</span>
+                            <span class="detail-value" id="detailUsuario">-</span>
+                        </div>
                     </div>
+
                     <div class="detail-item">
-                        <label>Usuário:</label>
-                        <span id="detailUsuario"></span>
+                        <div class="detail-icon">
+                            <i class="fas fa-bullseye"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Usuário Afetado</span>
+                            <span class="detail-value" id="detailAfetado">-</span>
+                        </div>
                     </div>
-                    <div class="detail-item">
-                        <label>Afetado:</label>
-                        <span id="detailAfetado"></span>
+
+                    <div class="detail-item detail-full">
+                        <div class="detail-icon">
+                            <i class="fas fa-file-alt"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Descrição</span>
+                            <p class="detail-value" id="detailDescricao">-</p>
+                        </div>
                     </div>
-                    <div class="detail-item full-width">
-                        <label>Descrição:</label>
-                        <p id="detailDescricao" class="detail-description"></p>
+                </div>
+
+                <div class="details-actions">
+                    <button class="btn-secondary" id="btnFecharDetalhesLog">
+                        Fechar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalConfirmacaoDeleteLogs" class="modal">
+        <div class="modal-content modal-confirmation">
+            <div class="modal-header">
+                <h2>Confirmar Limpeza de Logs</h2>
+                <button class="modal-close" id="closeConfirmacaoDeleteLogs">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="confirmation-content">
+                    <div class="confirmation-icon">
+                        <i class="fas fa-trash"></i>
                     </div>
+                    <p>Tem certeza que deseja deletar todos os logs?</p>
+                    <p class="confirmation-warning">Esta ação não pode ser desfeita.</p>
+                </div>
+                <div class="confirmation-actions">
+                    <button class="btn-secondary" id="btnCancelarDeleteLogs">Cancelar</button>
+                    <button class="btn-danger" id="btnConfirmarDeleteLogs">
+                        <i class="fas fa-trash"></i> Deletar Logs
+                    </button>
                 </div>
             </div>
         </div>
