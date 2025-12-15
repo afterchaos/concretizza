@@ -593,7 +593,7 @@ app.delete(
   autorizar("head-admin", "admin"),
   [param("id").isInt().withMessage("ID inválido")],
   validarRequisicao,
-  (req, res) => {
+  async (req, res) => {
     const { id } = req.params
     const usuarioId = parseInt(id)
     const usuarioAtual = req.usuario
@@ -605,38 +605,58 @@ app.delete(
       return res.status(400).json({ error: "Você não pode deletar sua própria conta" })
     }
 
-    db.get("SELECT permissao FROM usuarios WHERE id = $1", [usuarioId], (err, usuario) => {
-      if (err) {
-        console.error("[DELETE USUARIO] Erro ao buscar usuário:", err)
-        return res.status(500).json({ error: "Erro ao deletar usuário" })
-      }
+    const client = await pool.connect()
 
-      if (!usuario) {
+    try {
+      // Verificar usuário alvo e permissões
+      const userResult = await client.query("SELECT permissao FROM usuarios WHERE id = $1", [usuarioId])
+      const usuarioAlvo = userResult.rows[0]
+
+      if (!usuarioAlvo) {
         console.log("[DELETE USUARIO] Usuário não encontrado")
         return res.status(404).json({ error: "Usuário não encontrado" })
       }
 
       const cargoUsuarioLogado = usuarioAtual.cargo?.toLowerCase()
-      const cargoUsuarioAlvo = usuario.permissao?.toLowerCase()
+      const cargoUsuarioAlvo = usuarioAlvo.permissao?.toLowerCase()
 
       if (cargoUsuarioLogado === "admin" && (cargoUsuarioAlvo === "admin" || cargoUsuarioAlvo === "head-admin")) {
         console.log("[DELETE USUARIO] Erro: Admin tentou deletar usuário com cargo igual ou superior")
         return res.status(403).json({ error: "Admin não pode deletar usuários com cargo igual ou superior" })
       }
 
-      db.run("DELETE FROM usuarios WHERE id = $1", [usuarioId], function (err) {
-        if (err) {
-          console.error("[DELETE USUARIO] Erro ao deletar:", err)
-          return res.status(500).json({ error: "Erro ao deletar usuário" })
-        }
-        if (this.changes === 0) {
-          console.log("[DELETE USUARIO] Usuário não encontrado no delete")
-          return res.status(404).json({ error: "Usuário não encontrado" })
-        }
-        console.log("[DELETE USUARIO] Usuário deletado com sucesso")
-        res.json({ success: true, message: "Usuário deletado com sucesso" })
-      })
-    })
+      // Iniciar transação
+      await client.query('BEGIN')
+
+      // 1. Remover agendamentos do usuário
+      await client.query("DELETE FROM agendamentos WHERE usuario_id = $1", [usuarioId])
+
+      // 2. Desvincular clientes (setar usuario_id = NULL)
+      await client.query("UPDATE clientes SET usuario_id = NULL WHERE usuario_id = $1", [usuarioId])
+
+      // 3. Desvincular logs de auditoria
+      await client.query("UPDATE logs_auditoria SET usuario_id = NULL WHERE usuario_id = $1", [usuarioId])
+
+      // 4. Deletar o usuário
+      const deleteResult = await client.query("DELETE FROM usuarios WHERE id = $1", [usuarioId])
+
+      if (deleteResult.rowCount === 0) {
+        await client.query('ROLLBACK')
+        return res.status(404).json({ error: "Usuário não encontrado durante a exclusão" })
+      }
+
+      await client.query('COMMIT')
+      
+      console.log("[DELETE USUARIO] Usuário e dados relacionados processados com sucesso")
+      res.json({ success: true, message: "Usuário deletado com sucesso" })
+
+    } catch (err) {
+      await client.query('ROLLBACK')
+      console.error("[DELETE USUARIO] Erro ao deletar:", err)
+      res.status(500).json({ error: "Erro ao deletar usuário: " + err.message })
+    } finally {
+      client.release()
+    }
   }
 )
 
