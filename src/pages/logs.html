@@ -133,7 +133,7 @@
                                 <th>Módulo</th>
                                 <th>Data / Hora</th>
                                 <th>Usuário</th>
-                                <th>Afetado</th>
+                                <th>Usuário Afetado</th>
                                 <th>Descrição</th>
                             </tr>
                         </thead>
@@ -177,6 +177,43 @@
                     <button class="btn-danger" id="btnConfirmarLogout">
                         <i class="fas fa-sign-out-alt"></i> Sair
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalDetalhesLog" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Detalhes do Log</h2>
+                <button class="modal-close" id="closeDetalhesLog">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="log-details-grid">
+                    <div class="detail-item">
+                        <label>Ação:</label>
+                        <span id="detailAcao"></span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Módulo:</label>
+                        <span id="detailModulo"></span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Data/Hora:</label>
+                        <span id="detailDataHora"></span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Usuário:</label>
+                        <span id="detailUsuario"></span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Afetado:</label>
+                        <span id="detailAfetado"></span>
+                    </div>
+                    <div class="detail-item full-width">
+                        <label>Descrição:</label>
+                        <p id="detailDescricao" class="detail-description"></p>
+                    </div>
                 </div>
             </div>
         </div>

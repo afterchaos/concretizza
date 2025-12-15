@@ -1182,3 +1182,45 @@ body {
         min-width: auto;
     }
 }
+
+/* ===== LOG DETAILS MODAL ===== */
+.log-details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-lg);
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.detail-item.full-width {
+  grid-column: 1 / -1;
+}
+
+.detail-item label {
+  color: var(--color-gold-primary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.detail-item span,
+.detail-item p {
+  color: var(--color-white);
+  font-size: 1rem;
+}
+
+.detail-description {
+  background: rgba(255, 255, 255, 0.05);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  white-space: pre-wrap;
+}
+
+.table tbody tr {
+  cursor: pointer;
+}

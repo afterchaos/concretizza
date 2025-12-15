@@ -61,10 +61,10 @@ function atualizarTabela() {
     .slice()
     .reverse()
     .map((log) => {
-      const acaoIcon = obterIconoAcao(log.acao)
+      const index = logs.indexOf(log)
       const acaoBadge = obterBadgeAcao(log.acao)
       return `
-        <tr>
+        <tr onclick="abrirDetalhesLog(${index})">
           <td>${acaoBadge}</td>
           <td><span class="badge badge-info">${log.modulo || "-"}</span></td>
           <td>${log.dataFormatada || "-"} ${log.horaFormatada || "-"}</td>
@@ -177,6 +177,20 @@ function configurarEventos() {
   if (filterAcao) {
     filterAcao.addEventListener("change", filtrarLogs)
   }
+
+  const closeDetalhesLog = document.getElementById("closeDetalhesLog")
+  if (closeDetalhesLog) {
+    closeDetalhesLog.addEventListener("click", () => {
+      document.getElementById("modalDetalhesLog").style.display = "none"
+    })
+  }
+  
+  window.addEventListener("click", (e) => {
+    const modal = document.getElementById("modalDetalhesLog")
+    if (e.target === modal) {
+      modal.style.display = "none"
+    }
+  })
 }
 
 function filtrarLogs() {
@@ -204,9 +218,10 @@ function filtrarLogs() {
     .slice()
     .reverse()
     .map((log) => {
+      const index = logs.indexOf(log)
       const acaoBadge = obterBadgeAcao(log.acao)
       return `
-        <tr>
+        <tr onclick="abrirDetalhesLog(${index})">
           <td>${acaoBadge}</td>
           <td><span class="badge badge-info">${log.modulo || "-"}</span></td>
           <td>${log.dataFormatada || "-"} ${log.horaFormatada || "-"}</td>
@@ -275,4 +290,26 @@ function formatarCargo(cargo) {
     visualizar: "Visualizar"
   }
   return map[cargo?.toLowerCase()] || (cargo ? cargo.charAt(0).toUpperCase() + cargo.slice(1) : "")
+}
+
+function abrirDetalhesLog(index) {
+  const log = logs[index]
+  if (!log) return
+
+  const detailAcao = document.getElementById("detailAcao")
+  const detailModulo = document.getElementById("detailModulo")
+  const detailDataHora = document.getElementById("detailDataHora")
+  const detailUsuario = document.getElementById("detailUsuario")
+  const detailAfetado = document.getElementById("detailAfetado")
+  const detailDescricao = document.getElementById("detailDescricao")
+  const modal = document.getElementById("modalDetalhesLog")
+
+  if (detailAcao) detailAcao.textContent = log.acao
+  if (detailModulo) detailModulo.textContent = log.modulo
+  if (detailDataHora) detailDataHora.textContent = `${log.dataFormatada} ${log.horaFormatada}`
+  if (detailUsuario) detailUsuario.textContent = log.usuarioLogado
+  if (detailAfetado) detailAfetado.textContent = log.usuarioAfetado || "N/A"
+  if (detailDescricao) detailDescricao.textContent = log.descricao
+  
+  if (modal) modal.style.display = "flex"
 }
