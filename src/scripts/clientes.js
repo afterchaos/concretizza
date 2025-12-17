@@ -146,12 +146,16 @@ function atualizarTabela() {
   const fim = inicio + itensPorPagina
   const clientesPagina = clientesFiltrados.slice(inicio, fim)
 
+<<<<<<< HEAD
   let colspan = 8
   if (isAdminOrHead) {
     colspan = 10
   } else if (isCorretor) {
     colspan = 6
   }
+=======
+  const colspan = isAdminOrHead ? 10 : 8
+>>>>>>> a939b89e57c100135bbdfbf2afeecd637ebb89b2
 
   if (clientesPagina.length === 0) {
     tbody.innerHTML = `<tr><td colspan="${colspan}" class="text-center">Nenhum cliente encontrado</td></tr>`
@@ -175,7 +179,11 @@ function atualizarTabela() {
         <td>${formatarData(cliente.data)}</td>
         ${isAdminOrHead ? `<td>${cliente.cadastrado_por || "-"}</td>` : ""}
         ${isAdminOrHead ? `<td>${cliente.atribuido_a_nome || "-"}</td>` : ""}
+<<<<<<< HEAD
         ${!isCorretor ? `<td onclick="event.stopPropagation();">
+=======
+        <td onclick="event.stopPropagation();">
+>>>>>>> a939b89e57c100135bbdfbf2afeecd637ebb89b2
           ${podeEditarEste ? `<button class="btn-action btn-edit" onclick="editarCliente(${cliente.id})" title="Editar">
             <i class="fas fa-edit"></i> Editar
           </button>` : ""}
