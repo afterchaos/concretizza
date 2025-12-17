@@ -605,7 +605,7 @@ app.get(
   autorizar("admin", "head-admin"),
   (req, res) => {
     db.all(
-      "SELECT id, nome, email, username, permissao, status, telefone, departamento, ultimoAcesso FROM usuarios ORDER BY nome",
+      "SELECT id, nome, email, username, permissao, status, telefone, departamento, ultimoAcesso as \"ultimoAcesso\" FROM usuarios ORDER BY nome",
       (err, rows) => {
         if (err) {
           console.error(`[${getDataSaoPaulo()}] [GET USUARIOS] Erro ao buscar usuários:`, err)
