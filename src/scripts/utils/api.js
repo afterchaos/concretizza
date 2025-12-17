@@ -7,7 +7,7 @@ function verificarAutenticacao() {
   const usuarioLogado = JSON.parse(localStorage.getItem("usuarioLogado"))
   
   if (!token || !usuarioLogado) {
-    window.location.href = "index.html"
+    window.location.href = "/"
     return false
   }
   return true
@@ -134,5 +134,5 @@ async function deletarUsuario(id) {
 function fazerLogout() {
   localStorage.removeItem("token")
   localStorage.removeItem("usuarioLogado")
-  window.location.href = "index.html"
+  window.location.href = "/"
 }

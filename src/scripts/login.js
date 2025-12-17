@@ -126,7 +126,7 @@ async function handleSubmit(event) {
     const usuarioData = { ...data.usuario, permissao: data.usuario.cargo }
     localStorage.setItem("usuarioLogado", JSON.stringify(usuarioData))
 
-    window.location.href = "/pages/dashboard.html"
+    window.location.href = "/dashboard"
   } catch (error) {
     alert("Erro ao conectar com o servidor")
     console.error(error)

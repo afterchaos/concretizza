@@ -133,11 +133,11 @@ function configurarEventos() {
     item.addEventListener("click", (e) => {
       const page = item.getAttribute("data-page")
       if (page === "clientes") {
-        window.location.href = "clientes.html"
+        window.location.href = "/clientes"
       } else if (page === "usuarios") {
-        window.location.href = "usuarios.html"
+        window.location.href = "/usuarios"
       } else if (page === "logs") {
-        window.location.href = "logs.html"
+        window.location.href = "/logs"
       }
     })
   })

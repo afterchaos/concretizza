@@ -140,7 +140,7 @@ async function handleSubmit(event) {
     localStorage.setItem("token", data.token)
     localStorage.setItem("usuarioLogado", JSON.stringify(data.usuario))
 
-    window.location.href = "src/pages/dashboard.html"
+    window.location.href = "/dashboard"
   } catch (error) {
     showError("Erro de conexão com o servidor")
     showLoading(false)

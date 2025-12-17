@@ -1013,6 +1013,26 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "src", "pages", "index.html"))
 })
 
+app.get("/dashboard", (req, res) => {
+  res.sendFile(path.join(__dirname, "src", "pages", "dashboard.html"))
+})
+
+app.get("/clientes", (req, res) => {
+  res.sendFile(path.join(__dirname, "src", "pages", "clientes.html"))
+})
+
+app.get("/usuarios", (req, res) => {
+  res.sendFile(path.join(__dirname, "src", "pages", "usuarios.html"))
+})
+
+app.get("/corretores", (req, res) => {
+  res.sendFile(path.join(__dirname, "src", "pages", "corretores.html"))
+})
+
+app.get("/logs", (req, res) => {
+  res.sendFile(path.join(__dirname, "src", "pages", "logs.html"))
+})
+
 app.get("/pages/:page", (req, res) => {
   const { page } = req.params
   res.sendFile(path.join(__dirname, "src", "pages", `${page}.html`))
