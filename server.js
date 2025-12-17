@@ -233,6 +233,19 @@ async function registrarLog(usuarioId, acao, modulo, descricao, usuarioAfetado =
 
 initializeTables()
 
+async function populateUltimoAcesso() {
+  try {
+    const result = await dbQuery("UPDATE usuarios SET ultimoAcesso = $1 WHERE ultimoAcesso IS NULL", [new Date().toISOString()])
+    if (result.rowCount && result.rowCount > 0) {
+      console.log(`[${getDataSaoPaulo()}] ✓ ${result.rowCount} usuário(s) teve ultimoAcesso preenchido`)
+    }
+  } catch (error) {
+    console.log(`[${getDataSaoPaulo()}] Nota: Erro ao popular ultimoAcesso:`, error.message)
+  }
+}
+
+setTimeout(() => populateUltimoAcesso(), 1000)
+
 // ===== AUTO-SEED USUÁRIOS PADRÃO =====
 const usuariosPadrao = [
   {
@@ -342,7 +355,14 @@ app.post(
 
           console.log(`[${getDataSaoPaulo()}] [LOGIN] Token gerado para ${username}, cargo: ${user.permissao}`)
 
-          db.run("UPDATE usuarios SET ultimoAcesso = $1 WHERE id = $2", [new Date().toISOString(), user.id])
+          const dataAcesso = new Date().toISOString()
+          db.run("UPDATE usuarios SET ultimoAcesso = $1 WHERE id = $2", [dataAcesso, user.id], (err) => {
+            if (err) {
+              console.error(`[${getDataSaoPaulo()}] [LOGIN] Erro ao atualizar ultimoAcesso:`, err)
+            } else {
+              console.log(`[${getDataSaoPaulo()}] [LOGIN] ultimoAcesso atualizado para ${username}`)
+            }
+          })
 
           registrarLog(user.id, "LOGIN", "Autenticação", "Usuário realizou login", user.nome, req)
 
@@ -587,7 +607,11 @@ app.get(
     db.all(
       "SELECT id, nome, email, username, permissao, status, telefone, departamento, ultimoAcesso FROM usuarios ORDER BY nome",
       (err, rows) => {
-        if (err) return res.status(500).json({ error: "Erro ao buscar usuários" })
+        if (err) {
+          console.error(`[${getDataSaoPaulo()}] [GET USUARIOS] Erro ao buscar usuários:`, err)
+          return res.status(500).json({ error: "Erro ao buscar usuários" })
+        }
+        console.log(`[${getDataSaoPaulo()}] [GET USUARIOS] Retornando ${rows?.length || 0} usuários`)
         res.json(rows || [])
       }
     )
