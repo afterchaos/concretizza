@@ -93,6 +93,7 @@ function aplicarPermissoes() {
   const podeCriar = obterPermissao(usuario, "clientes", "create")
   const podeDeletar = obterPermissao(usuario, "clientes", "delete")
   const podeVer = obterPermissao(usuario, "clientes", "read")
+  const isCorretor = usuario?.cargo?.toLowerCase() === "corretor"
 
   if (!podeVer) {
     window.location.href = "/"
@@ -103,11 +104,22 @@ function aplicarPermissoes() {
     btnNovoCliente.style.display = podeCriar ? "flex" : "none"
   }
 
-  document.getElementById("bulkActions").style.display = "none"
+  const bulkActions = document.getElementById("bulkActions")
+  if (bulkActions) {
+    bulkActions.style.display = "none"
+  }
+  
   if (!podeDeletar) {
     const btnExcluirSelecionados = document.getElementById("btnExcluirSelecionados")
     if (btnExcluirSelecionados) {
       btnExcluirSelecionados.style.display = "none"
+    }
+  }
+
+  if (isCorretor) {
+    const selectAll = document.getElementById("selectAll")
+    if (selectAll && selectAll.parentElement) {
+      selectAll.parentElement.style.display = "none"
     }
   }
 }
@@ -125,11 +137,21 @@ function atualizarTabela() {
     headerCadastradoPor.style.display = isAdminOrHead ? "" : "none"
   }
 
+  const headerAtribuidoA = document.getElementById("headerAtribuidoA")
+  if (headerAtribuidoA) {
+    headerAtribuidoA.style.display = isAdminOrHead ? "" : "none"
+  }
+
   const inicio = (currentPage - 1) * itensPorPagina
   const fim = inicio + itensPorPagina
   const clientesPagina = clientesFiltrados.slice(inicio, fim)
 
-  const colspan = isAdminOrHead ? 9 : 8
+  let colspan = 8
+  if (isAdminOrHead) {
+    colspan = 10
+  } else if (isCorretor) {
+    colspan = 6
+  }
 
   if (clientesPagina.length === 0) {
     tbody.innerHTML = `<tr><td colspan="${colspan}" class="text-center">Nenhum cliente encontrado</td></tr>`
@@ -142,9 +164,9 @@ function atualizarTabela() {
           
           return `
       <tr onclick="abrirDetalhesCliente(${cliente.id})" style="cursor: pointer;">
-        <td onclick="event.stopPropagation();">
+        ${!isCorretor ? `<td onclick="event.stopPropagation();">
           <input type="checkbox" class="checkbox-input cliente-checkbox" data-id="${cliente.id}">
-        </td>
+        </td>` : ""}
         <td>${cliente.nome}</td>
         <td>${cliente.telefone}</td>
         <td>${formatarInteresse(cliente.interesse)}</td>
@@ -152,14 +174,15 @@ function atualizarTabela() {
         <td>${cliente.email || "-"}</td>
         <td>${formatarData(cliente.data)}</td>
         ${isAdminOrHead ? `<td>${cliente.cadastrado_por || "-"}</td>` : ""}
-        <td onclick="event.stopPropagation();">
+        ${isAdminOrHead ? `<td>${cliente.atribuido_a_nome || "-"}</td>` : ""}
+        ${!isCorretor ? `<td onclick="event.stopPropagation();">
           ${podeEditarEste ? `<button class="btn-action btn-edit" onclick="editarCliente(${cliente.id})" title="Editar">
             <i class="fas fa-edit"></i> Editar
           </button>` : ""}
           ${podeDeletarEste ? `<button class="btn-action btn-delete" onclick="excluirClienteConfirm(${cliente.id})" title="Excluir">
             <i class="fas fa-trash"></i> Excluir
           </button>` : ""}
-        </td>
+        </td>` : ""}
       </tr>
     `
         }
@@ -463,7 +486,7 @@ function abrirDetalhesCliente(id) {
   
   const btnEditarDetalhes = document.getElementById("btnEditarDetalhes")
   if (btnEditarDetalhes) {
-    const podeEditarEste = podeEditar && (!isCorretor || cliente.usuario_id === usuarioLogado.id)
+    const podeEditarEste = podeEditar && !isCorretor
     btnEditarDetalhes.style.display = podeEditarEste ? "" : "none"
   }
   
@@ -474,6 +497,16 @@ function abrirDetalhesCliente(id) {
       document.getElementById("detailCadastradoPor").textContent = cliente.cadastrado_por || "-"
     } else {
       detailCadastradoPorContainer.style.display = "none"
+    }
+  }
+
+  const detailAtribuidoAContainer = document.getElementById("detailAtribuidoAContainer")
+  if (detailAtribuidoAContainer) {
+    if (isAdminOrHeadAdmin()) {
+      detailAtribuidoAContainer.style.display = ""
+      document.getElementById("detailAtribuidoA").textContent = cliente.atribuido_a_nome || "-"
+    } else {
+      detailAtribuidoAContainer.style.display = "none"
     }
   }
 
