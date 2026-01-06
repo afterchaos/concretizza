@@ -738,7 +738,19 @@ app.put(
 
       if (result.rowCount === 0) return res.status(404).json({ error: "Usuário não encontrado" })
       await registrarLog(req.usuario.id, "EDITAR", "Usuários", `Usuário atualizado: ${nome || id}`, nome || id, req)
-      res.json({ success: true, message: "Usuário atualizado com sucesso" })
+      
+      let responseData = { success: true, message: "Usuário atualizado com sucesso" }
+      
+      if (usuarioIdSendoEditado === req.usuario.id) {
+        const novoToken = jwt.sign(
+          { id: req.usuario.id, username: req.usuario.username, cargo: permissao.toLowerCase() },
+          JWT_SECRET,
+          { expiresIn: process.env.JWT_EXPIRE || "24h" }
+        )
+        responseData.token = novoToken
+      }
+      
+      res.json(responseData)
     } catch (err) {
       console.error("[UPDATE USER] Erro ao atualizar usuário:", err)
       if (err.message?.includes("UNIQUE")) {

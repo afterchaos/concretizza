@@ -445,7 +445,15 @@ async function salvarUsuario() {
       }
 
       console.log("[USUARIOS] Atualizando usuário:", usuarioEmEdicao, usuario)
-      await atualizarUsuario(usuarioEmEdicao, usuario)
+      const resultado = await atualizarUsuario(usuarioEmEdicao, usuario)
+      
+      const usuarioLogado = obterUsuarioLogado()
+      if (resultado.token && usuarioLogado && usuarioLogado.id === parseInt(usuarioEmEdicao)) {
+        localStorage.setItem("token", resultado.token)
+        usuarioLogado.cargo = permissao
+        localStorage.setItem("usuarioLogado", JSON.stringify(usuarioLogado))
+      }
+      
       registrarLog("EDITAR", "USUARIOS", `Usuário "${nome}" (${permissao}) atualizado`, nome)
       mostrarNotificacao("Usuário atualizado com sucesso!", "sucesso")
     } else {
