@@ -47,11 +47,14 @@ const itensPorPagina = 10
 let clienteEmEdicao = null
 let clienteParaVer = null
 let clientesSelecionados = []
+let corretores = []
 
 async function carregarClientes() {
   try {
     mostrarCarregando(true)
     clientes = await obterClientes()
+    await carregarCorretores()
+    populateSelectAtribuicao()
     clientesFiltrados = [...clientes]
     currentPage = 1
     atualizarTabela()
@@ -62,6 +65,26 @@ async function carregarClientes() {
   } finally {
     mostrarCarregando(false)
   }
+}
+
+async function carregarCorretores() {
+  try {
+    const usuarios = await obterUsuarios()
+    corretores = usuarios.filter(u => getCargosAsArray(u.cargo).some(c => c.toLowerCase().includes('corretor')))
+  } catch (error) {
+    console.error("Erro ao carregar corretores:", error)
+  }
+}
+
+function populateSelectAtribuicao() {
+  const select = document.getElementById("filterAtribuicao")
+  select.innerHTML = `<option value="">Todos os Corretores</option>`
+  corretores.forEach(corretor => {
+    const option = document.createElement("option")
+    option.value = corretor.nome
+    option.textContent = corretor.nome
+    select.appendChild(option)
+  })
 }
 
 function atualizarEstatisticas() {
@@ -151,7 +174,7 @@ function atualizarTabela() {
   const cargos = getCargosAsArray(usuarioLogado?.cargo).map(c => c.toLowerCase()) || []
   const isCorretor = cargos.includes('corretor') && !cargos.includes('admin') && !cargos.includes('head-admin')
   const filterAtribuicaoValue = document.getElementById("filterAtribuicao").value
-  const showAtribuido = isAdminOrHead || filterAtribuicaoValue === "atribuidos"
+  const showAtribuido = isAdminOrHead || filterAtribuicaoValue !== ""
   
   const headerCadastradoPor = document.getElementById("headerCadastradoPor")
   if (headerCadastradoPor) {
@@ -429,7 +452,7 @@ function filtrarClientes() {
       (cliente.email && cliente.email.toLowerCase().includes(search))
     const matchStatus = !filterStatus || cliente.status === filterStatus
     const matchInteresse = !filterInteresse || cliente.interesse === filterInteresse
-    const matchAtribuicao = !filterAtribuicao || (filterAtribuicao === "atribuidos" && cliente.atribuido_a_nome && cliente.atribuido_a_nome.trim() !== "")
+    const matchAtribuicao = !filterAtribuicao || cliente.atribuido_a_nome === filterAtribuicao || cliente.cadastrado_por === filterAtribuicao
 
     return matchSearch && matchStatus && matchInteresse && matchAtribuicao
   })
