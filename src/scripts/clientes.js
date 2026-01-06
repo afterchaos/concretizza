@@ -150,6 +150,8 @@ function atualizarTabela() {
   const isAdminOrHead = isAdminOrHeadAdmin()
   const cargos = getCargosAsArray(usuarioLogado?.cargo).map(c => c.toLowerCase()) || []
   const isCorretor = cargos.includes('corretor') && !cargos.includes('admin') && !cargos.includes('head-admin')
+  const filterAtribuicaoValue = document.getElementById("filterAtribuicao").value
+  const showAtribuido = isAdminOrHead || filterAtribuicaoValue === "atribuidos"
   
   const headerCadastradoPor = document.getElementById("headerCadastradoPor")
   if (headerCadastradoPor) {
@@ -158,7 +160,7 @@ function atualizarTabela() {
 
   const headerAtribuidoA = document.getElementById("headerAtribuidoA")
   if (headerAtribuidoA) {
-    headerAtribuidoA.style.display = isAdminOrHead ? "" : "none"
+    headerAtribuidoA.style.display = showAtribuido ? "" : "none"
   }
 
   const inicio = (currentPage - 1) * itensPorPagina
@@ -166,10 +168,14 @@ function atualizarTabela() {
   const clientesPagina = clientesFiltrados.slice(inicio, fim)
 
   let colspan = 8
+  if (isCorretor) {
+    colspan -= 1
+  }
+  if (showAtribuido) {
+    colspan += 1
+  }
   if (isAdminOrHead) {
-    colspan = 10
-  } else if (isCorretor) {
-    colspan = 7
+    colspan += 1
   }
 
   if (clientesPagina.length === 0) {
@@ -193,7 +199,7 @@ function atualizarTabela() {
         <td>${cliente.email || "-"}</td>
         <td>${formatarData(cliente.data)}</td>
         ${isAdminOrHead ? `<td>${cliente.cadastrado_por || "-"}</td>` : ""}
-        ${isAdminOrHead ? `<td>${cliente.atribuido_a_nome || "-"}</td>` : ""}
+        ${showAtribuido ? `<td>${cliente.atribuido_a_nome || "-"}</td>` : ""}
         <td onclick="event.stopPropagation();">
           ${podeEditarEste ? `<button class="btn-action btn-edit" onclick="editarCliente(${cliente.id})" title="Editar">
             <i class="fas fa-edit"></i> Editar
@@ -311,6 +317,7 @@ function configurarEventos() {
   const searchClientes = document.getElementById("searchClientes")
   const filterStatus = document.getElementById("filterStatus")
   const filterInteresse = document.getElementById("filterInteresse")
+  const filterAtribuicao = document.getElementById("filterAtribuicao")
 
   if (searchClientes) {
     searchClientes.addEventListener("input", filtrarClientes)
@@ -320,6 +327,9 @@ function configurarEventos() {
   }
   if (filterInteresse) {
     filterInteresse.addEventListener("change", filtrarClientes)
+  }
+  if (filterAtribuicao) {
+    filterAtribuicao.addEventListener("change", filtrarClientes)
   }
 
   const prevPage = document.getElementById("prevPage")
@@ -410,6 +420,7 @@ function filtrarClientes() {
   const search = document.getElementById("searchClientes").value.toLowerCase()
   const filterStatus = document.getElementById("filterStatus").value
   const filterInteresse = document.getElementById("filterInteresse").value
+  const filterAtribuicao = document.getElementById("filterAtribuicao").value
 
   clientesFiltrados = clientes.filter((cliente) => {
     const matchSearch =
@@ -418,8 +429,9 @@ function filtrarClientes() {
       (cliente.email && cliente.email.toLowerCase().includes(search))
     const matchStatus = !filterStatus || cliente.status === filterStatus
     const matchInteresse = !filterInteresse || cliente.interesse === filterInteresse
+    const matchAtribuicao = !filterAtribuicao || (filterAtribuicao === "atribuidos" && cliente.atribuido_a_nome && cliente.atribuido_a_nome.trim() !== "")
 
-    return matchSearch && matchStatus && matchInteresse
+    return matchSearch && matchStatus && matchInteresse && matchAtribuicao
   })
 
   currentPage = 1
