@@ -127,7 +127,7 @@
 
                 <div class="filter-bar">
                     <input type="text" id="searchUsuarios" placeholder="Buscar por nome ou email..." class="search-input">
-                    <select id="filterPermissao" class="select-input">
+                    <select id="filterCargo" class="select-input">
                         <option value="">Todas as permissões</option>
                         <option value="head-admin">Head-Admin</option>
                         <option value="admin">Admin</option>
@@ -210,18 +210,18 @@
                     </div>
                     <div class="form-group">
                         <label>Nível de Permissão *</label>
-                        <div class="checkbox-group" id="usuarioPermissaoContainer" style="display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                        <div class="checkbox-group" id="usuarioCargoContainer" style="display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
                             <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                <input type="checkbox" name="usuarioPermissao" value="head-admin"> Head-Admin - Gerencia admins + Acesso total
+                                <input type="checkbox" name="usuarioCargo" value="head-admin"> Head-Admin - Gerencia admins + Acesso total
                             </label>
                             <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                <input type="checkbox" name="usuarioPermissao" value="admin"> Admin - Acesso total
+                                <input type="checkbox" name="usuarioCargo" value="admin"> Admin - Acesso total
                             </label>
                             <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                <input type="checkbox" name="usuarioPermissao" value="corretor"> Corretor - Criar e editar
+                                <input type="checkbox" name="usuarioCargo" value="corretor"> Corretor - Criar e editar
                             </label>
                             <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                <input type="checkbox" name="usuarioPermissao" value="visualizar"> Visualizar - Apenas visualizar
+                                <input type="checkbox" name="usuarioCargo" value="visualizar"> Visualizar - Apenas visualizar
                             </label>
                         </div>
                     </div>

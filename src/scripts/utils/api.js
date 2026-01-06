@@ -42,7 +42,11 @@ async function fazerRequisicao(url, options = {}) {
     }
 
     if (response.status === 401 || response.status === 403) {
-      console.error(`[API] Erro ${response.status} - deslogando usuário`)
+      const responseData = await response.json().catch(() => ({}))
+      console.error(`[API] Erro ${response.status} - ${responseData.error || 'Token inválido'}`)
+      console.log("[API] Token atual:", token?.substring(0, 20) + "...")
+      console.log("[API] Usuário logado:", localStorage.getItem("usuarioLogado"))
+      
       localStorage.removeItem("token")
       localStorage.removeItem("usuarioLogado")
       window.location.href = "/"
@@ -102,7 +106,11 @@ async function atribuirCliente(id, atribuido_a) {
 }
 
 async function obterUsuarios() {
-  return fazerRequisicao("/api/usuarios", { method: "GET" })
+  const usuarios = await fazerRequisicao("/api/usuarios", { method: "GET" });
+  if (usuarios && Array.isArray(usuarios)) {
+    return usuarios.map(u => ({ ...u, cargo: u.permissao, permissao: undefined }));
+  }
+  return usuarios;
 }
 
 async function criarUsuario(usuario) {

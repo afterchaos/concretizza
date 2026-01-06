@@ -31,8 +31,7 @@ function carregarDadosUsuario() {
 
     const adminSection = document.getElementById("adminSection")
     if (adminSection) {
-      const cargo = usuarioLogado.cargo?.toLowerCase()
-      if (cargo === "admin" || cargo === "head-admin") {
+      if (isAdminOrHeadAdmin()) {
         adminSection.style.display = "block"
       } else {
         adminSection.style.display = "none"
@@ -93,7 +92,8 @@ function aplicarPermissoes() {
   const podeCriar = obterPermissao(usuario, "clientes", "create")
   const podeDeletar = obterPermissao(usuario, "clientes", "delete")
   const podeVer = obterPermissao(usuario, "clientes", "read")
-  const isCorretor = usuario?.cargo?.toLowerCase() === "corretor"
+  const cargos = getCargosAsArray(usuario?.cargo).map(c => c.toLowerCase()) || []
+  const isCorretor = cargos.includes('corretor') && !cargos.includes('admin') && !cargos.includes('head-admin')
 
   if (!podeVer) {
     window.location.href = "/"
@@ -148,7 +148,8 @@ function atualizarTabela() {
   const podeEditar = obterPermissao(usuarioLogado, "clientes", "update")
   const podeDeletar = obterPermissao(usuarioLogado, "clientes", "delete")
   const isAdminOrHead = isAdminOrHeadAdmin()
-  const isCorretor = usuarioLogado?.cargo?.toLowerCase() === "corretor"
+  const cargos = getCargosAsArray(usuarioLogado?.cargo).map(c => c.toLowerCase()) || []
+  const isCorretor = cargos.includes('corretor') && !cargos.includes('admin') && !cargos.includes('head-admin')
   
   const headerCadastradoPor = document.getElementById("headerCadastradoPor")
   if (headerCadastradoPor) {
@@ -484,7 +485,8 @@ function editarCliente(id) {
   if (!cliente) return
 
   const usuarioLogado = obterUsuarioLogado()
-  const isCorretor = usuarioLogado?.cargo?.toLowerCase() === "corretor"
+  const cargos = getCargosAsArray(usuarioLogado?.cargo).map(c => c.toLowerCase()) || []
+  const isCorretor = cargos.includes('corretor') && !cargos.includes('admin') && !cargos.includes('head-admin')
   
   if (isCorretor && cliente.usuario_id !== usuarioLogado.id) {
     mostrarNotificacao("Você não tem permissão para editar este cliente", "erro")
@@ -568,7 +570,8 @@ function abrirDetalhesCliente(id) {
   
   const usuarioLogado = obterUsuarioLogado()
   const podeEditar = obterPermissao(usuarioLogado, "clientes", "update")
-  const isCorretor = usuarioLogado?.cargo?.toLowerCase() === "corretor"
+  const cargos = getCargosAsArray(usuarioLogado?.cargo).map(c => c.toLowerCase()) || []
+  const isCorretor = cargos.includes('corretor') && !cargos.includes('admin') && !cargos.includes('head-admin')
   
   const btnEditarDetalhes = document.getElementById("btnEditarDetalhes")
   if (btnEditarDetalhes) {
@@ -604,7 +607,8 @@ async function excluirClienteConfirm(id) {
   if (!cliente) return
 
   const usuarioLogado = obterUsuarioLogado()
-  const isCorretor = usuarioLogado?.cargo?.toLowerCase() === "corretor"
+  const cargos = getCargosAsArray(usuarioLogado?.cargo).map(c => c.toLowerCase()) || []
+  const isCorretor = cargos.includes('corretor') && !cargos.includes('admin') && !cargos.includes('head-admin')
   
   if (isCorretor && cliente.usuario_id !== usuarioLogado.id) {
     mostrarNotificacao("Você não tem permissão para deletar este cliente", "erro")

@@ -65,11 +65,11 @@ function autenticar(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET)
-    console.log(`[${getDataSaoPaulo()}] [AUTH] Token verificado:`, decoded)
+    console.log(`[${getDataSaoPaulo()}] [AUTH] Token verificado - ID: ${decoded.id}, Username: ${decoded.username}, Cargo: "${decoded.cargo}"`)
     req.usuario = decoded
     next()
   } catch (err) {
-    console.log(`[${getDataSaoPaulo()}] [AUTH] Token inválido:`, err.message)
+    console.error(`[${getDataSaoPaulo()}] [AUTH] Token inválido: ${err.message}, Token: ${token?.substring(0, 50)}...`)
     return res.status(401).json({ error: "Token inválido ou expirado" })
   }
 }
@@ -77,7 +77,7 @@ function autenticar(req, res, next) {
 // ===== MIDDLEWARE DE AUTORIZAÇÃO =====
 function autorizar(...cargosPermitidos) {
   return (req, res, next) => {
-    const cargosUsuario = req.usuario.cargo ? req.usuario.cargo.split(',').map(c => c.trim()) : [];
+    const cargosUsuario = req.usuario.cargo ? req.usuario.cargo.toLowerCase().split(',').map(c => c.trim()) : [];
     console.log(`[${getDataSaoPaulo()}] [AUTORIZAR] Verificando cargos "${cargosUsuario.join(", ")}" contra [${cargosPermitidos.join(", ")}]`)
     
     const temPermissao = cargosUsuario.some(cargo => cargosPermitidos.includes(cargo));
@@ -423,13 +423,15 @@ app.post(
 
 // ===== ROTAS DE CLIENTES =====
 app.get("/api/clientes", autenticar, (req, res) => {
-  const isCorretor = req.usuario.cargo?.toLowerCase().split(',').map(c => c.trim()).includes("corretor")
+  const cargos = req.usuario.cargo ? req.usuario.cargo.toLowerCase().split(',').map(c => c.trim()) : []
+  const isCorretor = cargos.includes("corretor")
+  const isAdmin = cargos.includes("admin") || cargos.includes("head-admin")
   const usuarioId = req.usuario.id
   
   let query = "SELECT c.id, c.nome, c.telefone, c.email, c.interesse, c.valor, c.status, c.observacoes, c.data, c.usuario_id, u.nome as cadastrado_por, c.atribuido_a, ua.nome as atribuido_a_nome FROM clientes c LEFT JOIN usuarios u ON c.usuario_id = u.id LEFT JOIN usuarios ua ON c.atribuido_a = ua.id"
   let params = []
   
-  if (isCorretor) {
+  if (isCorretor && !isAdmin) {
     query += " WHERE c.usuario_id = $1 OR c.atribuido_a = $2"
     params = [usuarioId, usuarioId]
   }
@@ -493,10 +495,12 @@ app.put(
   async (req, res) => {
     const { id } = req.params
     const { nome, telefone, email, interesse, valor, status, observacoes } = req.body
-    const isCorretor = req.usuario.cargo?.toLowerCase().split(',').map(c => c.trim()).includes("corretor")
+    const cargos = req.usuario.cargo ? req.usuario.cargo.toLowerCase().split(',').map(c => c.trim()) : []
+    const isCorretor = cargos.includes("corretor")
+    const isAdmin = cargos.includes("admin") || cargos.includes("head-admin")
     
     try {
-      if (isCorretor) {
+      if (isCorretor && !isAdmin) {
         const cliente = await dbQuery("SELECT usuario_id FROM clientes WHERE id = $1", [id])
         if (cliente.rows.length === 0) {
           return res.status(404).json({ error: "Cliente não encontrado" })
@@ -506,7 +510,6 @@ app.put(
           return res.status(403).json({ error: "Você não tem permissão para editar este cliente" })
         }
 
-        // Corretores só podem editar status e interesse
         const result = await dbQuery(
           "UPDATE clientes SET interesse = $1, status = $2, atualizado_em = CURRENT_TIMESTAMP WHERE id = $3",
           [interesse || null, status || null, id]
@@ -538,7 +541,9 @@ app.delete(
   validarRequisicao,
   async (req, res) => {
     const { id } = req.params
-    const isCorretor = req.usuario.cargo?.toLowerCase().split(',').map(c => c.trim()).includes("corretor")
+    const cargos = req.usuario.cargo ? req.usuario.cargo.toLowerCase().split(',').map(c => c.trim()) : []
+    const isCorretor = cargos.includes("corretor")
+    const isAdmin = cargos.includes("admin") || cargos.includes("head-admin")
     
     try {
       const clienteResult = await dbQuery("SELECT nome, usuario_id FROM clientes WHERE id = $1", [id])
@@ -548,7 +553,7 @@ app.delete(
         return res.status(404).json({ error: "Cliente não encontrado" })
       }
       
-      if (isCorretor && cliente.usuario_id !== req.usuario.id) {
+      if (isCorretor && !isAdmin && cliente.usuario_id !== req.usuario.id) {
         console.log(`[${getDataSaoPaulo()}] [CLIENTES DELETE] Corretor tentou deletar cliente de outro usuário`)
         return res.status(403).json({ error: "Você não tem permissão para deletar este cliente" })
       }
@@ -645,7 +650,7 @@ app.post(
   validarRequisicao,
   async (req, res) => {
     const { nome, email, username, password, permissao, status, telefone, departamento } = req.body
-    const cargosUsuarioLogado = req.usuario.cargo.toLowerCase().split(',').map(c => c.trim())
+    const cargosUsuarioLogado = (req.usuario.cargo || '').toLowerCase().split(',').map(c => c.trim())
     const cargosNovos = permissao.toLowerCase().split(',').map(c => c.trim())
 
     const isLogadoHeadAdmin = cargosUsuarioLogado.includes("head-admin")
@@ -692,7 +697,7 @@ app.put(
   async (req, res) => {
     const { id } = req.params
     const { nome, email, password, permissao, status, telefone, departamento } = req.body
-    const cargosUsuarioLogado = req.usuario.cargo.toLowerCase().split(',').map(c => c.trim())
+    const cargosUsuarioLogado = (req.usuario.cargo || '').toLowerCase().split(',').map(c => c.trim())
     const usuarioIdSendoEditado = parseInt(id)
 
     try {
@@ -702,15 +707,25 @@ app.put(
       if (!usuarioAlvo) return res.status(404).json({ error: "Usuário não encontrado" })
 
       const cargosAlvo = usuarioAlvo.permissao.toLowerCase().split(',').map(c => c.trim())
+      const cargosNovos = permissao.toLowerCase().split(',').map(c => c.trim())
       
       const isLogadoHeadAdmin = cargosUsuarioLogado.includes("head-admin")
       const isLogadoAdmin = cargosUsuarioLogado.includes("admin")
       
       const isAlvoAdmin = cargosAlvo.includes("admin")
       const isAlvoHeadAdmin = cargosAlvo.includes("head-admin")
+      
+      const isNovoAdmin = cargosNovos.includes("admin")
+      const isNovoHeadAdmin = cargosNovos.includes("head-admin")
+      
+      const isEditandoAsiMesmo = usuarioIdSendoEditado === req.usuario.id
 
-      if (!isLogadoHeadAdmin && isLogadoAdmin && (isAlvoAdmin || isAlvoHeadAdmin)) {
+      if (!isEditandoAsiMesmo && !isLogadoHeadAdmin && isLogadoAdmin && (isAlvoAdmin || isAlvoHeadAdmin)) {
         return res.status(403).json({ error: "Admin não pode editar usuários com cargo igual ou superior" })
+      }
+      
+      if (!isLogadoHeadAdmin && isLogadoAdmin && (isNovoAdmin || isNovoHeadAdmin)) {
+        return res.status(403).json({ error: "Admin não pode criar ou modificar para cargos admin ou superior" })
       }
 
       let senhaHash = null
@@ -1079,7 +1094,9 @@ app.delete("/api/logs", autenticar, autorizar("head-admin", "admin"), async (req
 // ===== ROTAS DE AGENDAMENTOS =====
 app.get("/api/agendamentos", autenticar, async (req, res) => {
   try {
-    const isCorretor = req.usuario.cargo?.toLowerCase().split(',').map(c => c.trim()).includes("corretor")
+    const cargos = req.usuario.cargo ? req.usuario.cargo.toLowerCase().split(',').map(c => c.trim()) : []
+    const isCorretor = cargos.includes("corretor")
+    const isAdmin = cargos.includes("admin") || cargos.includes("head-admin")
     const usuarioId = req.usuario.id
     
     let query = `
@@ -1090,7 +1107,7 @@ app.get("/api/agendamentos", autenticar, async (req, res) => {
     `
     let params = []
     
-    if (isCorretor) {
+    if (isCorretor && !isAdmin) {
       query += " WHERE a.usuario_id = $1"
       params = [usuarioId]
     }
@@ -1150,7 +1167,9 @@ app.put(
   async (req, res) => {
     const { id } = req.params
     const { data, hora, tipo, status, observacoes } = req.body
-    const isCorretor = req.usuario.cargo?.toLowerCase().split(',').map(c => c.trim()).includes("corretor")
+    const cargos = req.usuario.cargo ? req.usuario.cargo.toLowerCase().split(',').map(c => c.trim()) : []
+    const isCorretor = cargos.includes("corretor")
+    const isAdmin = cargos.includes("admin") || cargos.includes("head-admin")
     
     try {
       const agendamento = await dbQuery("SELECT usuario_id FROM agendamentos WHERE id = $1", [id])
@@ -1158,7 +1177,7 @@ app.put(
         return res.status(404).json({ error: "Agendamento não encontrado" })
       }
       
-      if (isCorretor && agendamento.rows[0].usuario_id !== req.usuario.id) {
+      if (isCorretor && !isAdmin && agendamento.rows[0].usuario_id !== req.usuario.id) {
         return res.status(403).json({ error: "Permissão negada" })
       }
 
@@ -1183,7 +1202,9 @@ app.delete(
   validarRequisicao,
   async (req, res) => {
     const { id } = req.params
-    const isCorretor = req.usuario.cargo?.toLowerCase().split(',').map(c => c.trim()).includes("corretor")
+    const cargos = req.usuario.cargo ? req.usuario.cargo.toLowerCase().split(',').map(c => c.trim()) : []
+    const isCorretor = cargos.includes("corretor")
+    const isAdmin = cargos.includes("admin") || cargos.includes("head-admin")
     
     try {
       const agendamento = await dbQuery("SELECT usuario_id FROM agendamentos WHERE id = $1", [id])
@@ -1191,7 +1212,7 @@ app.delete(
         return res.status(404).json({ error: "Agendamento não encontrado" })
       }
       
-      if (isCorretor && agendamento.rows[0].usuario_id !== req.usuario.id) {
+      if (isCorretor && !isAdmin && agendamento.rows[0].usuario_id !== req.usuario.id) {
         return res.status(403).json({ error: "Permissão negada" })
       }
 

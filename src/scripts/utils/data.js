@@ -70,34 +70,3 @@ function mostrarNotificacao(mensagem, tipo = 'info', duracao = 4000) {
   }
 }
 
-function obterUsuarioLogado() {
-  const usuarioStr = localStorage.getItem("usuarioLogado")
-  return usuarioStr ? JSON.parse(usuarioStr) : null
-}
-
-function obterPermissao(usuario, modulo, acao) {
-  if (!usuario || !usuario.cargo) return false
-  const PERMISSIONS = {
-    'head-admin': {
-      clientes: ['create', 'read', 'update', 'delete'],
-      usuarios: ['create', 'read', 'update', 'delete', 'manage-admins'],
-      logs: ['read'],
-    },
-    admin: {
-      clientes: ['create', 'read', 'update', 'delete'],
-      usuarios: ['create', 'read', 'update', 'delete'],
-      logs: ['read'],
-    },
-    corretor: {
-      clientes: ['create', 'read', 'update', 'delete'],
-      usuarios: ['read'],
-    },
-    visualizar: {
-      clientes: ['read'],
-      usuarios: [],
-    },
-  }
-  const perms = PERMISSIONS[usuario.cargo.toLowerCase()]
-  if (!perms) return false
-  return perms[modulo]?.includes(acao) || false
-}

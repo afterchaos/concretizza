@@ -123,8 +123,7 @@ async function handleSubmit(event) {
     }
 
     localStorage.setItem("token", data.token)
-    const usuarioData = { ...data.usuario, permissao: data.usuario.cargo }
-    localStorage.setItem("usuarioLogado", JSON.stringify(usuarioData))
+    localStorage.setItem("usuarioLogado", JSON.stringify(data.usuario))
 
     window.location.href = "/dashboard"
   } catch (error) {
