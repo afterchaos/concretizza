@@ -131,6 +131,16 @@ function aplicarPermissoes() {
   const cargos = getCargosAsArray(usuario?.cargo).map(c => c.toLowerCase()) || []
   const isCorretor = cargos.includes('corretor') && !cargos.includes('admin') && !cargos.includes('head-admin')
 
+  const filterAtribuicao = document.getElementById("filterAtribuicao")
+  if (filterAtribuicao) {
+    filterAtribuicao.style.display = isAdminOrHeadAdmin() ? "block" : "none"
+  }
+
+  const tagsGroup = document.getElementById("tagsGroup")
+  if (tagsGroup) {
+    tagsGroup.style.display = isAdminOrHeadAdmin() ? "block" : "none"
+  }
+
   if (!podeVer && !isCorretor) {
     window.location.href = "/"
     return
@@ -486,6 +496,7 @@ async function salvarCliente() {
   const interesse = document.getElementById("clienteInteresse").value
   const valor = document.getElementById("clienteValor").value.trim()
   const status = document.getElementById("clienteStatus").value
+  const tags = document.getElementById("clienteTags") ? document.getElementById("clienteTags").value.trim() : null
   const observacoes = document.getElementById("clienteObservacoes").value.trim()
 
   if (!nome || !telefone || !interesse || !status) {
@@ -501,6 +512,7 @@ async function salvarCliente() {
       interesse,
       valor: valor || null,
       status,
+      tags: tags || null,
       observacoes: observacoes || null,
       data: new Date().toISOString().split("T")[0]
     }
@@ -549,6 +561,9 @@ function editarCliente(id) {
   document.getElementById("clienteInteresse").value = cliente.interesse
   document.getElementById("clienteValor").value = cliente.valor || ""
   document.getElementById("clienteStatus").value = cliente.status
+  if (document.getElementById("clienteTags")) {
+    document.getElementById("clienteTags").value = cliente.tags || ""
+  }
   document.getElementById("clienteObservacoes").value = cliente.observacoes || ""
 
   // Ocultar campos que corretor não pode editar
@@ -615,6 +630,23 @@ function abrirDetalhesCliente(id) {
   document.getElementById("detailData").textContent = formatarData(cliente.data)
   document.getElementById("detailStatus").textContent = formatarStatus(cliente.status)
   document.getElementById("detailObservacoes").textContent = cliente.observacoes || "-"
+  
+  // Renderizar Tags
+  const detailTagsContainer = document.getElementById("detailTagsContainer")
+  const detailTags = document.getElementById("detailTags")
+  if (detailTagsContainer && detailTags) {
+    if (cliente.tags) {
+      detailTagsContainer.style.display = "flex"
+      detailTags.innerHTML = cliente.tags.split(',')
+        .map(tag => tag.trim())
+        .filter(tag => tag !== "")
+        .map(tag => `<span class="tag-badge">${tag}</span>`)
+        .join("")
+    } else {
+      detailTagsContainer.style.display = "none"
+      detailTags.innerHTML = ""
+    }
+  }
   
   const usuarioLogado = obterUsuarioLogado()
   const podeEditar = obterPermissao(usuarioLogado, "clientes", "update")

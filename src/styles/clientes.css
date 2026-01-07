@@ -449,6 +449,30 @@ body {
   color: #64c864;
 }
 
+/* ===== TAGS ===== */
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.tag-badge {
+  background-color: rgba(255, 215, 0, 0.1);
+  color: var(--color-gold-primary);
+  border: 1px solid var(--color-border-gold);
+  padding: 0.25rem 0.625rem;
+  border-radius: 100px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.tag-badge:hover {
+  background-color: rgba(255, 215, 0, 0.2);
+  transform: translateY(-1px);
+}
+
 /* ===== BUTTONS ===== */
 .btn-primary,
 .btn-secondary,

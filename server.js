@@ -214,6 +214,14 @@ async function initializeTables() {
         console.log(`[${getDataSaoPaulo()}] Nota: Coluna atribuido_a já existe ou erro ao adicionar:`, e.message)
       }
     }
+
+    try {
+      await dbQuery("ALTER TABLE clientes ADD COLUMN tags TEXT")
+    } catch (e) {
+      if (!e.message?.includes("already exists") && !e.message?.includes("duplicate column")) {
+        console.log(`[${getDataSaoPaulo()}] Nota: Coluna tags já existe ou erro ao adicionar:`, e.message)
+      }
+    }
   } catch (error) {
     console.error(`[${getDataSaoPaulo()}] Erro ao criar tabelas:`, error.message)
   }
@@ -428,7 +436,7 @@ app.get("/api/clientes", autenticar, (req, res) => {
   const isAdmin = cargos.includes("admin") || cargos.includes("head-admin")
   const usuarioId = req.usuario.id
   
-  let query = "SELECT c.id, c.nome, c.telefone, c.email, c.interesse, c.valor, c.status, c.observacoes, c.data, c.usuario_id, u.nome as cadastrado_por, c.atribuido_a, ua.nome as atribuido_a_nome FROM clientes c LEFT JOIN usuarios u ON c.usuario_id = u.id LEFT JOIN usuarios ua ON c.atribuido_a = ua.id"
+  let query = "SELECT c.id, c.nome, c.telefone, c.email, c.interesse, c.valor, c.status, c.observacoes, c.data, c.usuario_id, c.tags, u.nome as cadastrado_por, c.atribuido_a, ua.nome as atribuido_a_nome FROM clientes c LEFT JOIN usuarios u ON c.usuario_id = u.id LEFT JOIN usuarios ua ON c.atribuido_a = ua.id"
   let params = []
   
   if (isCorretor && !isAdmin) {
@@ -460,16 +468,16 @@ app.post(
   ],
   validarRequisicao,
   async (req, res) => {
-    const { nome, telefone, email, interesse, valor, status, observacoes, data } = req.body
+    const { nome, telefone, email, interesse, valor, status, observacoes, data, tags } = req.body
     const usuarioResponsavel = req.usuario.id
     const dataCliente = data || new Date().toISOString().split("T")[0]
     
-    console.log(`[${getDataSaoPaulo()}] [CLIENTES] Criando novo cliente:`, { nome, telefone, email, interesse, valor, status, observacoes, data: dataCliente, usuarioResponsavel })
+    console.log(`[${getDataSaoPaulo()}] [CLIENTES] Criando novo cliente:`, { nome, telefone, email, interesse, valor, status, observacoes, data: dataCliente, usuarioResponsavel, tags })
     
     try {
       const result = await dbQuery(
-        "INSERT INTO clientes (nome, telefone, email, interesse, valor, status, observacoes, data, usuario_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
-        [nome, telefone, email || null, interesse, valor || null, status, observacoes || null, dataCliente, usuarioResponsavel]
+        "INSERT INTO clientes (nome, telefone, email, interesse, valor, status, observacoes, data, usuario_id, tags) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id",
+        [nome, telefone, email || null, interesse, valor || null, status, observacoes || null, dataCliente, usuarioResponsavel, tags || null]
       )
       const clienteId = result.rows[0]?.id
       console.log(`[${getDataSaoPaulo()}] [CLIENTES] Cliente criado com sucesso, ID:`, clienteId)
@@ -494,7 +502,7 @@ app.put(
   validarRequisicao,
   async (req, res) => {
     const { id } = req.params
-    const { nome, telefone, email, interesse, valor, status, observacoes } = req.body
+    const { nome, telefone, email, interesse, valor, status, observacoes, tags } = req.body
     const cargos = req.usuario.cargo ? req.usuario.cargo.toLowerCase().split(',').map(c => c.trim()) : []
     const isCorretor = cargos.includes("corretor")
     const isAdmin = cargos.includes("admin") || cargos.includes("head-admin")
@@ -520,8 +528,8 @@ app.put(
       }
       
       const result = await dbQuery(
-        "UPDATE clientes SET nome = $1, telefone = $2, email = $3, interesse = $4, valor = $5, status = $6, observacoes = $7, atualizado_em = CURRENT_TIMESTAMP WHERE id = $8",
-        [nome, telefone, email, interesse, valor, status, observacoes, id]
+        "UPDATE clientes SET nome = $1, telefone = $2, email = $3, interesse = $4, valor = $5, status = $6, observacoes = $7, tags = $8, atualizado_em = CURRENT_TIMESTAMP WHERE id = $9",
+        [nome, telefone, email, interesse, valor, status, observacoes, tags, id]
       )
       if (result.rowCount === 0) return res.status(404).json({ error: "Cliente não encontrado" })
       await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Cliente atualizado: ${nome || id}`, nome || id, req)

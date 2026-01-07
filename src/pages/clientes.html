@@ -239,6 +239,10 @@
                             <option value="finalizado">Finalizado</option>
                         </select>
                     </div>
+                    <div class="form-group" id="tagsGroup" style="display: none;">
+                        <label for="clienteTags">Tags (separadas por vírgula)</label>
+                        <input type="text" id="clienteTags" placeholder="Ex: urgente, investidor, preferencial">
+                    </div>
                     <div class="form-group">
                         <label for="clienteObservacoes">Observações</label>
                         <textarea id="clienteObservacoes" rows="4" placeholder="Adicione informações relevantes sobre o cliente..."></textarea>
@@ -348,6 +352,17 @@
                         <div class="detail-info">
                             <span class="detail-label">Atribuído a</span>
                             <span class="detail-value" id="detailAtribuidoA">-</span>
+                        </div>
+                    </div>
+                    
+                    <div class="detail-item detail-full" id="detailTagsContainer" style="display: none;">
+                        <div class="detail-icon">
+                            <i class="fas fa-tags"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Tags</span>
+                            <div class="tags-container" id="detailTags">
+                            </div>
                         </div>
                     </div>
                     
