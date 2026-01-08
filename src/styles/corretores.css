@@ -1,9 +1,9 @@
 @import url('/styles/clientes.css');
 
 .content-section {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
-  gap: var(--spacing-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xl);
   margin-top: var(--spacing-xl);
 }
 
@@ -192,8 +192,79 @@
   opacity: 0.7 !important;
 }
 
+/* Enhanced modal styles for better visual alignment */
 .modal-large {
   max-width: 900px;
+  width: 95vw;
+}
+
+/* Specific styles for the assigned clients modal */
+#modalClientesCorretor .modal-content {
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#modalClientesCorretor .modal-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#modalClientesCorretor .filter-bar {
+  flex-shrink: 0;
+  margin-bottom: var(--spacing-md);
+}
+
+#modalClientesCorretor .table-responsive {
+  flex: 1;
+  overflow: auto;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+#modalClientesCorretor .table {
+  min-width: 700px;
+  margin: 0;
+}
+
+#modalClientesCorretor .table th,
+#modalClientesCorretor .table td {
+  white-space: nowrap;
+  padding: var(--spacing-sm) var(--spacing-md);
+}
+
+#modalClientesCorretor .table th {
+  position: sticky;
+  top: 0;
+  background-color: rgba(255, 215, 0, 0.05);
+  z-index: 10;
+}
+
+/* Improve checkbox column width */
+#modalClientesCorretor .table th:first-child,
+#modalClientesCorretor .table td:first-child {
+  width: 50px;
+  min-width: 50px;
+  text-align: center;
+}
+
+/* Improve actions column width */
+#modalClientesCorretor .table th:last-child,
+#modalClientesCorretor .table td:last-child {
+  width: 120px;
+  min-width: 120px;
+  text-align: center;
+}
+
+/* Status and interest columns */
+#modalClientesCorretor .table th:nth-child(5),
+#modalClientesCorretor .table td:nth-child(5),
+#modalClientesCorretor .table th:nth-child(6),
+#modalClientesCorretor .table td:nth-child(6) {
+  width: 120px;
+  min-width: 120px;
 }
 
 .empty-state {
@@ -214,27 +285,266 @@
   font-size: 1.1rem;
 }
 
+/* Enhanced responsive styles for corretores page */
+
+/* Large tablets and small desktops */
+@media (max-width: 1200px) {
+  .corretores-container {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--spacing-md);
+  }
+
+  .corretor-card {
+    padding: var(--spacing-md);
+  }
+
+  .corretor-stats {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-sm);
+  }
+
+  .stat-value {
+    font-size: 1.25rem;
+  }
+}
+
+/* Tablets */
+@media (max-width: 1024px) {
+  .corretores-container {
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  }
+
+  .corretor-card {
+    padding: var(--spacing-md);
+  }
+
+  .corretor-name {
+    font-size: 1rem;
+  }
+
+  .corretor-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Small tablets and large phones */
 @media (max-width: 768px) {
   .content-section {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+    gap: var(--spacing-md);
   }
 
   .corretores-container {
     grid-template-columns: 1fr;
+    gap: var(--spacing-md);
+  }
+
+  .corretor-card {
+    padding: var(--spacing-md);
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .corretor-header {
+    flex-direction: column;
+    text-align: center;
+    gap: var(--spacing-md);
+    padding-bottom: var(--spacing-md);
+  }
+
+  .corretor-info {
+    width: 100%;
+  }
+
+  .corretor-name {
+    font-size: 1.1rem;
+  }
+
+  .corretor-status {
+    align-self: center;
   }
 
   .corretor-stats {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-sm);
+  }
+
+  .stat-item {
+    padding: var(--spacing-sm);
+  }
+
+  .stat-value {
+    font-size: 1.125rem;
+  }
+
+  .stat-label {
+    font-size: 0.6875rem;
+  }
+
+  .corretor-contacts {
+    align-items: center;
+    gap: var(--spacing-sm);
+  }
+
+  .contact-item {
+    font-size: 0.8125rem;
   }
 
   .corretor-actions {
     flex-direction: column;
+    width: 100%;
+    gap: var(--spacing-sm);
   }
 
   .btn-assign,
   .btn-view-clients {
     width: 100%;
+    padding: 0.625rem 1rem;
+    font-size: 0.875rem;
+    min-height: 44px;
   }
+
+  /* Modal improvements for mobile */
+  .modal-large {
+    max-width: 95vw;
+    margin: var(--spacing-md);
+  }
+
+  .modal-large .modal-content {
+    max-height: 90vh;
+  }
+}
+
+/* Mobile phones */
+@media (max-width: 480px) {
+  .corretores-container {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-sm);
+  }
+
+  .corretor-card {
+    padding: var(--spacing-sm);
+  }
+
+  .corretor-header {
+    padding-bottom: var(--spacing-sm);
+  }
+
+  .corretor-name {
+    font-size: 1rem;
+  }
+
+  .corretor-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-item {
+    padding: var(--spacing-xs);
+  }
+
+  .stat-value {
+    font-size: 1rem;
+  }
+
+  .corretor-contacts {
+    gap: var(--spacing-xs);
+    font-size: 0.75rem;
+  }
+
+  .corretor-actions {
+    gap: var(--spacing-xs);
+  }
+
+  .btn-assign,
+  .btn-view-clients {
+    padding: 0.5rem 0.875rem;
+    font-size: 0.8125rem;
+    min-height: 40px;
+  }
+
+  /* Improve touch targets for mobile */
+  .corretor-card {
+    cursor: pointer;
+  }
+
+  .corretor-card:active {
+    transform: scale(0.98);
+  }
+
+  /* Modal on mobile */
+  .modal-large {
+    padding: var(--spacing-sm);
+  }
+
+  .modal-large .modal-content {
+    padding: var(--spacing-md);
+  }
+
+  /* Specific mobile improvements for assigned clients modal */
+  #modalClientesCorretor .modal-content {
+    max-height: 90vh;
+    max-width: 98vw;
+  }
+
+  #modalClientesCorretor .table {
+    min-width: 650px;
+    font-size: 0.8125rem;
+  }
+
+  #modalClientesCorretor .table th,
+  #modalClientesCorretor .table td {
+    padding: var(--spacing-xs) var(--spacing-sm);
+  }
+
+  #modalClientesCorretor .modal-header {
+    flex-shrink: 0;
+    padding-bottom: var(--spacing-sm);
+  }
+
+  #modalClientesCorretor .modal-header h2 {
+    font-size: 1.25rem;
+    line-height: 1.3;
+  }
+}
+
+/* Extra small devices */
+@media (max-width: 360px) {
+  .corretor-card {
+    padding: var(--spacing-xs);
+  }
+
+  .corretor-stats {
+    gap: var(--spacing-xs);
+  }
+
+  .stat-item {
+    padding: var(--spacing-xs);
+  }
+
+  .corretor-contacts {
+    font-size: 0.6875rem;
+  }
+}
+
+/* Ajustes para alinhar e dimensionar consistentemente os elementos na filter-bar */
+.filter-bar .bulk-actions {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 48px;
+  background: none;
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+.filter-bar .bulk-actions .btn-primary {
+  width: 100%;
+  min-width: 200px;
+  padding: 0.75rem 1rem;
+  font-size: 0.9375rem;
+  margin: 0;
 }
 
 .toast {
@@ -292,4 +602,21 @@
     transform: translateX(0);
     opacity: 1;
   }
+}
+
+.card-header-section h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin: 0;
+}
+
+.header-count {
+  font-size: 0.875rem;
+  background-color: rgba(255, 215, 0, 0.1);
+  color: var(--color-gold-primary);
+  padding: 0.25rem 0.75rem;
+  border-radius: 100px;
+  font-weight: 600;
+  border: 1px solid var(--color-border-gold);
 }

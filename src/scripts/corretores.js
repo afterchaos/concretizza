@@ -106,6 +106,11 @@ function renderizarCorretores() {
   if (!container) return
   container.removeAttribute("data-loading")
   
+  const countEl = document.getElementById("countCorretores")
+  if (countEl) {
+    countEl.textContent = corretoresFiltrados.length
+  }
+  
   if (corretoresFiltrados.length === 0) {
     container.innerHTML = `
       <div class="empty-state" style="grid-column: 1 / -1;">
@@ -180,6 +185,11 @@ function atualizarClientesDisponiveis() {
   tbody.removeAttribute("data-loading")
   
   const clientesDisponiveis = clientes.filter(c => !c.atribuido_a)
+  
+  const countEl = document.getElementById("countClientesDisponiveis")
+  if (countEl) {
+    countEl.textContent = clientesDisponiveis.length
+  }
   
   const inicio = (currentPageDisponiveis - 1) * itensPorPagina
   const fim = inicio + itensPorPagina
@@ -400,12 +410,27 @@ function configurarEventos() {
   
   document.getElementById("searchClientesCorretor").addEventListener("input", filtrarClientesCorretor)
   
-  document.getElementById("sidebarToggle").addEventListener("click", () => {
-    document.querySelector(".sidebar").style.transform = "translateX(-100%)"
-  })
-  
-  document.getElementById("sidebarToggleMobile").addEventListener("click", () => {
-    document.querySelector(".sidebar").style.transform = "translateX(0)"
+  // Sidebar toggle functionality
+  const sidebar = document.querySelector(".sidebar")
+  const sidebarToggleMobile = document.getElementById("sidebarToggleMobile")
+
+  if (sidebarToggleMobile && sidebar) {
+    sidebarToggleMobile.addEventListener("click", () => {
+      sidebar.classList.toggle("active")
+    })
+  }
+
+  // Close sidebar when clicking outside on mobile
+  document.addEventListener("click", (e) => {
+    if (window.innerWidth <= 768) {
+      const sidebar = document.querySelector(".sidebar")
+      const sidebarToggle = document.getElementById("sidebarToggleMobile")
+
+      if (sidebar && sidebar.classList.contains("active") &&
+          !sidebar.contains(e.target) && e.target !== sidebarToggle) {
+        sidebar.classList.remove("active")
+      }
+    }
   })
 
   // Fechar modal ao clicar fora
@@ -441,6 +466,11 @@ function filtrarClientesDisponiveis() {
     const matchStatus = !status || cliente.status === status
     return matchSearch && matchStatus
   })
+
+  const countEl = document.getElementById("countClientesDisponiveis")
+  if (countEl) {
+    countEl.textContent = clientesDisponiveis.length
+  }
 
   currentPageDisponiveis = 1
 
