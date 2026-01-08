@@ -1060,13 +1060,14 @@ body {
   }
 
   .filter-bar {
-    flex-direction: column;
+    flex-wrap: wrap;
     gap: var(--spacing-sm);
   }
 
   .search-input,
   .select-input {
-    min-width: 100%;
+    flex: 1;
+    min-width: 150px;
     padding: 0.625rem 0.875rem;
     font-size: 0.875rem;
   }
