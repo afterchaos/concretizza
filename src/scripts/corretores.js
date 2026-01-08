@@ -49,7 +49,7 @@ let clientesDisponiveisFiltrados = []
 let corretoresCompletos = {}
 let corretorAtualSelecionado = null
 let currentPageDisponiveis = 1
-const itensPorPagina = 10
+let itensPorPagina = 10
 let clientesSelecionadosDisponiveis = []
 let filtrosAtivosDisponiveis = false
 
