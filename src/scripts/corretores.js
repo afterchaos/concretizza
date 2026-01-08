@@ -331,10 +331,25 @@ function aplicarPermissoes() {
   if (!usuario) return
 
   const podeEditar = isAdminOrHeadAdmin()
-  
+
   if (!podeEditar) {
     window.location.href = "/"
     return
+  }
+
+  // Items per page for corretores page
+  const itemsPerPageContainerDisponiveis = document.querySelector("#clientesDisponiveisTable").closest(".content-card").querySelector(".items-per-page-container")
+  const itemsPerPageSelectDisponiveis = document.getElementById("itemsPerPageDisponiveis")
+  if (itemsPerPageContainerDisponiveis && itemsPerPageSelectDisponiveis) {
+    itemsPerPageContainerDisponiveis.style.display = isAdminOrHeadAdmin() ? "flex" : "none"
+    if (isAdminOrHeadAdmin()) {
+      // Load saved preference
+      const savedItemsPerPage = localStorage.getItem("corretoresItemsPerPage")
+      if (savedItemsPerPage && [10, 25, 50, 100].includes(parseInt(savedItemsPerPage))) {
+        itensPorPagina = parseInt(savedItemsPerPage)
+        itemsPerPageSelectDisponiveis.value = savedItemsPerPage
+      }
+    }
   }
 }
 
@@ -411,6 +426,16 @@ function configurarEventos() {
   })
   
   document.getElementById("searchClientesCorretor").addEventListener("input", filtrarClientesCorretor)
+
+  const itemsPerPage = document.getElementById("itemsPerPageDisponiveis")
+  if (itemsPerPage) {
+    itemsPerPage.addEventListener("change", (e) => {
+      itensPorPagina = parseInt(e.target.value)
+      currentPageDisponiveis = 1
+      localStorage.setItem("corretoresItemsPerPage", itensPorPagina.toString())
+      atualizarClientesDisponiveis()
+    })
+  }
   
   // Sidebar toggle functionality
   const sidebar = document.querySelector(".sidebar")
