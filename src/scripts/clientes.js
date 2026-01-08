@@ -438,6 +438,17 @@ function configurarEventos() {
     })
   }
 
+  const btnWhatsApp = document.getElementById("btnWhatsApp")
+  if (btnWhatsApp) {
+    btnWhatsApp.addEventListener("click", () => {
+      if (clienteParaVer && clienteParaVer.telefone) {
+        let telefone = clienteParaVer.telefone.replace(/[^\d\s]/g, '').replace(/\s+/g, '')
+        let whatsappNumber = '55' + telefone
+        window.open(`https://wa.me/${whatsappNumber}`, '_blank')
+      }
+    })
+  }
+
   const closeConfirmacao = document.getElementById("closeConfirmacao")
   if (closeConfirmacao) {
     closeConfirmacao.addEventListener("click", () => {
