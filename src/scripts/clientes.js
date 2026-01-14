@@ -244,7 +244,7 @@ function atualizarTabela() {
     tbody.innerHTML = clientesPagina
       .map(
         (cliente) => {
-          const podeEditarEste = (podeEditar && !isCorretor) || (isCorretor && cliente.usuario_id === usuarioLogado.id)
+          const podeEditarEste = (podeEditar && !isCorretor) || (isCorretor && (cliente.usuario_id === usuarioLogado.id || cliente.atribuido_a === usuarioLogado.id))
           const podeDeletarEste = podeDeletar && !isCorretor
           
           return `
@@ -584,7 +584,7 @@ function editarCliente(id) {
   const cargos = getCargosAsArray(usuarioLogado?.cargo).map(c => c.toLowerCase()) || []
   const isCorretor = cargos.includes('corretor') && !cargos.includes('admin') && !cargos.includes('head-admin')
   
-  if (isCorretor && cliente.usuario_id !== usuarioLogado.id) {
+  if (isCorretor && cliente.usuario_id !== usuarioLogado.id && cliente.atribuido_a !== usuarioLogado.id) {
     mostrarNotificacao("Você não tem permissão para editar este cliente", "erro")
     return
   }
@@ -602,24 +602,45 @@ function editarCliente(id) {
   }
   document.getElementById("clienteObservacoes").value = cliente.observacoes || ""
 
-  // Ocultar campos que corretor não pode editar
-  const camposRestritos = ["clienteNome", "clienteTelefone", "clienteEmail", "clienteValor", "clienteObservacoes"]
-  camposRestritos.forEach(campoId => {
-    const el = document.getElementById(campoId)
-    if (el) {
-      const formGroup = el.closest('.form-group')
-      if (formGroup) {
-        if (isCorretor) {
+  // Para corretores: mostrar apenas o campo de observações
+  if (isCorretor) {
+    const camposParaOcultar = ["clienteNome", "clienteTelefone", "clienteEmail", "clienteValor"]
+    camposParaOcultar.forEach(campoId => {
+      const el = document.getElementById(campoId)
+      if (el) {
+        const formGroup = el.closest('.form-group')
+        if (formGroup) {
           formGroup.style.display = "none"
-        } else {
+        }
+        el.disabled = true
+      }
+    })
+
+    // Mostrar e habilitar apenas o campo de observações
+    const campoObservacoes = document.getElementById("clienteObservacoes")
+    if (campoObservacoes) {
+      const formGroup = campoObservacoes.closest('.form-group')
+      if (formGroup) {
+        formGroup.style.display = ""
+      }
+      campoObservacoes.disabled = false
+      campoObservacoes.style.backgroundColor = ""
+      campoObservacoes.style.cursor = ""
+    }
+  } else {
+    // Para admins: mostrar todos os campos
+    const todosCampos = ["clienteNome", "clienteTelefone", "clienteEmail", "clienteValor", "clienteObservacoes"]
+    todosCampos.forEach(campoId => {
+      const el = document.getElementById(campoId)
+      if (el) {
+        const formGroup = el.closest('.form-group')
+        if (formGroup) {
           formGroup.style.display = ""
         }
+        el.disabled = false
       }
-      
-      // Manter disabled logic just in case
-      el.disabled = isCorretor
-    }
-  })
+    })
+  }
   
   // Se for corretor, mostrar nome do cliente em destaque já que o campo de nome está oculto
   const modalBody = document.querySelector("#modalCliente .modal-body")
@@ -691,7 +712,7 @@ function abrirDetalhesCliente(id) {
   
   const btnEditarDetalhes = document.getElementById("btnEditarDetalhes")
   if (btnEditarDetalhes) {
-    const podeEditarEste = (podeEditar && !isCorretor) || (isCorretor && cliente.usuario_id === usuarioLogado.id)
+    const podeEditarEste = (podeEditar && !isCorretor) || (isCorretor && (cliente.usuario_id === usuarioLogado.id || cliente.atribuido_a === usuarioLogado.id))
     btnEditarDetalhes.style.display = podeEditarEste ? "" : "none"
   }
   
