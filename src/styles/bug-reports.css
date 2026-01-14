@@ -384,7 +384,7 @@ body {
 .btn-primary,
 .btn-secondary,
 .btn-danger {
-  padding: 0.75rem 1.5rem;
+  padding: var(--spacing-md) var(--spacing-lg);
   border: none;
   border-radius: var(--radius-md);
   font-size: 0.9375rem;
@@ -395,17 +395,19 @@ body {
   display: inline-flex;
   align-items: center;
   gap: var(--spacing-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--color-gold-primary), var(--color-gold-dark));
+  background: linear-gradient(135deg, var(--color-gold-primary) 0%, var(--color-gold-dark) 100%);
   color: var(--color-background);
-  box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+  box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
 }
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(255, 215, 0, 0.4);
+  box-shadow: 0 8px 25px rgba(255, 215, 0, 0.6);
 }
 
 .btn-primary:active {
@@ -413,15 +415,9 @@ body {
 }
 
 .btn-disabled {
-  background: var(--color-gray);
+  background: linear-gradient(135deg, var(--color-gold-primary) 0%, var(--color-gold-dark) 100%);
+  color: var(--color-background);
   cursor: not-allowed;
-  opacity: 0.6;
-  transform: none;
-  box-shadow: none;
-}
-
-.btn-disabled:hover {
-  background: var(--color-gray);
   transform: none;
   box-shadow: none;
 }
