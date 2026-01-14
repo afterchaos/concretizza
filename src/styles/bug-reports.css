@@ -400,18 +400,18 @@ body {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--color-gold-primary) 0%, var(--color-gold-dark) 100%);
-  color: var(--color-background);
-  box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+  background: linear-gradient(135deg, var(--color-gold-primary) 0%, var(--color-gold-dark) 100%) !important;
+  color: var(--color-background) !important;
+  box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4) !important;
 }
 
 .btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(255, 215, 0, 0.6);
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 25px rgba(255, 215, 0, 0.6) !important;
 }
 
 .btn-primary:active {
-  transform: translateY(0);
+  transform: translateY(0) !important;
 }
 
 .btn-disabled {
