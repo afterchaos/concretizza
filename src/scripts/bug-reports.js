@@ -1,10 +1,12 @@
 let bugReports = []
 let currentBugReport = null
 let bugReportToDelete = null
+let socket = null
 
 document.addEventListener("DOMContentLoaded", () => {
   verificarAutenticacao()
   configurarDadosUsuario()
+  conectarSocketIO()
   carregarBugReports()
   configurarEventos()
 })
@@ -15,6 +17,75 @@ function verificarAutenticacao() {
   if (!token || !usuario || !isHeadAdmin()) {
     window.location.href = "/"
   }
+}
+
+function conectarSocketIO() {
+  const token = localStorage.getItem("token")
+  if (!token) {
+    console.error("Token não encontrado para conexão Socket.IO")
+    return
+  }
+
+  socket = io({
+    auth: {
+      token: token
+    }
+  })
+
+  socket.on('connect', () => {
+    console.log('Conectado ao servidor via Socket.IO')
+  })
+
+  socket.on('disconnect', () => {
+    console.log('Desconectado do servidor Socket.IO')
+  })
+
+  socket.on('connect_error', (error) => {
+    console.error('Erro de conexão Socket.IO:', error.message)
+  })
+
+  socket.on('new-message', (messageData) => {
+    // Adicionar mensagem ao chat em tempo real
+    adicionarMensagemAoChat(messageData)
+  })
+
+  socket.on('message-sent', () => {
+    // Mensagem enviada com sucesso
+    mostrarNotificacao("Mensagem enviada com sucesso!", "sucesso")
+  })
+
+  socket.on('message-error', (error) => {
+    console.error('Erro de mensagem:', error)
+    mostrarNotificacao("Erro ao enviar mensagem", "erro")
+  })
+}
+
+function adicionarMensagemAoChat(messageData) {
+  const chatMessages = document.getElementById("chatMessages")
+  if (!chatMessages) return
+
+  const usuarioLogado = JSON.parse(localStorage.getItem("usuarioLogado"))
+  const isOwn = messageData.usuario_id === usuarioLogado.id
+  const avatar = messageData.usuario_nome.charAt(0).toUpperCase()
+  const time = formatarDataHora(messageData.criado_em)
+
+  const messageElement = document.createElement('div')
+  messageElement.className = `chat-message ${isOwn ? 'own' : ''}`
+  messageElement.innerHTML = `
+    <div class="chat-avatar">${avatar}</div>
+    <div class="chat-content">
+      <div class="chat-header">
+        <span class="chat-author">${messageData.usuario_nome}</span>
+        <span class="chat-time">${time}</span>
+      </div>
+      <div class="chat-text">${messageData.mensagem.replace(/\n/g, '<br>')}</div>
+    </div>
+  `
+
+  chatMessages.appendChild(messageElement)
+
+  // Scroll to bottom
+  chatMessages.scrollTop = chatMessages.scrollHeight
 }
 
 function carregarDadosUsuario() {
@@ -455,6 +526,11 @@ function mostrarBugReportDetail() {
   if (formMensagem) {
     formMensagem.addEventListener("submit", enviarMensagem)
   }
+
+  // Join the bug report room for real-time messages
+  if (socket && currentBugReport.id) {
+    socket.emit('join-bug-report', currentBugReport.id)
+  }
 }
 
 function atualizarChatMessages() {
@@ -495,17 +571,17 @@ async function enviarMensagem(e) {
   const mensagemInput = document.getElementById("novaMensagem")
   const mensagem = mensagemInput.value.trim()
 
-  if (!mensagem || !currentBugReport) return
+  if (!mensagem || !currentBugReport || !socket) return
 
   try {
-    await fazerRequisicao(`/api/bug-reports/${currentBugReport.id}/messages`, {
-      method: "POST",
-      body: JSON.stringify({ mensagem })
+    // Enviar mensagem via Socket.IO (que também salva no banco)
+    socket.emit('send-message', {
+      bugReportId: currentBugReport.id,
+      mensagem: mensagem
     })
 
     mensagemInput.value = ""
-    await visualizarBugReport(currentBugReport.id) // Reload the bug report
-    mostrarNotificacao("Mensagem enviada com sucesso!", "sucesso")
+    // Não precisa recarregar, a mensagem aparecerá via Socket.IO
   } catch (error) {
     console.error("Erro ao enviar mensagem:", error)
     mostrarNotificacao("Erro ao enviar mensagem", "erro")
@@ -548,6 +624,11 @@ async function confirmarDeleteBugReport() {
 }
 
 function voltarParaLista() {
+  // Leave the bug report room
+  if (socket && currentBugReport?.id) {
+    socket.emit('leave-bug-report', currentBugReport.id)
+  }
+
   document.getElementById("bugReportDetailPage").classList.remove("active")
   document.getElementById("bugReportsPage").classList.add("active")
   currentBugReport = null

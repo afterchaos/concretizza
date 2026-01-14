@@ -1,5 +1,7 @@
 require("dotenv").config()
 const express = require("express")
+const http = require("http")
+const { Server } = require("socket.io")
 const path = require("path")
 const fs = require("fs")
 const bcrypt = require("bcryptjs")
@@ -1529,13 +1531,117 @@ app.use((req, res) => {
   res.status(404).json({ error: "Rota não encontrada" })
 })
 
+// ===== SOCKET.IO SETUP =====
+const server = http.createServer(app)
+const io = new Server(server, {
+  cors: {
+    origin: process.env.CORS_ORIGIN || "http://localhost:3000",
+    methods: ["GET", "POST"],
+    credentials: true
+  }
+})
+
+// Middleware de autenticação para Socket.IO
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token
+  if (!token) {
+    return next(new Error("Token não fornecido"))
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET)
+    socket.usuario = decoded
+    console.log(`[${getDataSaoPaulo()}] [SOCKET] Usuário autenticado: ${decoded.username}`)
+    next()
+  } catch (err) {
+    console.error(`[${getDataSaoPaulo()}] [SOCKET] Token inválido:`, err.message)
+    next(new Error("Token inválido"))
+  }
+})
+
+// Gerenciar conexões Socket.IO
+io.on('connection', (socket) => {
+  console.log(`[${getDataSaoPaulo()}] [SOCKET] Usuário conectado: ${socket.usuario.username} (ID: ${socket.id})`)
+
+  // Entrar em uma sala de bug report específico
+  socket.on('join-bug-report', (bugReportId) => {
+    socket.join(`bug-report-${bugReportId}`)
+    console.log(`[${getDataSaoPaulo()}] [SOCKET] ${socket.usuario.username} entrou na sala do bug report ${bugReportId}`)
+  })
+
+  // Sair de uma sala de bug report
+  socket.on('leave-bug-report', (bugReportId) => {
+    socket.leave(`bug-report-${bugReportId}`)
+    console.log(`[${getDataSaoPaulo()}] [SOCKET] ${socket.usuario.username} saiu da sala do bug report ${bugReportId}`)
+  })
+
+  // Enviar mensagem em tempo real
+  socket.on('send-message', async (data) => {
+    try {
+      const { bugReportId, mensagem } = data
+      const usuarioId = socket.usuario.id
+
+      // Verificar se o bug report existe
+      const bugReport = await dbQuery("SELECT id, titulo FROM bug_reports WHERE id = $1", [bugReportId])
+      if (bugReport.rows.length === 0) {
+        socket.emit('message-error', { error: "Bug report não encontrado" })
+        return
+      }
+
+      // Inserir a mensagem no banco
+      const result = await dbQuery(
+        "INSERT INTO bug_report_messages (bug_report_id, usuario_id, mensagem) VALUES ($1, $2, $3) RETURNING id, criado_em",
+        [bugReportId, usuarioId, mensagem]
+      )
+
+      // Atualizar a data do bug report
+      await dbQuery("UPDATE bug_reports SET atualizado_em = CURRENT_TIMESTAMP WHERE id = $1", [bugReportId])
+
+      const messageId = result.rows[0]?.id
+      const criadoEm = result.rows[0]?.criado_em
+
+      // Buscar dados do usuário para a resposta
+      const userResult = await dbQuery("SELECT nome, username FROM usuarios WHERE id = $1", [usuarioId])
+      const usuario = userResult.rows[0]
+
+      // Criar objeto da mensagem
+      const messageData = {
+        id: messageId,
+        mensagem: mensagem,
+        usuario_id: usuarioId,
+        usuario_nome: usuario.nome || usuario.username,
+        criado_em: criadoEm
+      }
+
+      // Emitir para todos na sala do bug report
+      io.to(`bug-report-${bugReportId}`).emit('new-message', messageData)
+
+      // Emitir confirmação para o remetente
+      socket.emit('message-sent')
+
+      console.log(`[${getDataSaoPaulo()}] [SOCKET] Mensagem enviada no bug report ${bugReportId} por ${socket.usuario.username}`)
+
+    } catch (err) {
+      console.error(`[${getDataSaoPaulo()}] [SOCKET] Erro ao enviar mensagem:`, err)
+      socket.emit('message-error', { error: "Erro ao enviar mensagem" })
+    }
+  })
+
+  socket.on('disconnect', () => {
+    console.log(`[${getDataSaoPaulo()}] [SOCKET] Usuário desconectado: ${socket.usuario.username} (ID: ${socket.id})`)
+  })
+})
+
 // ===== INICIAR SERVIDOR =====
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`[${getDataSaoPaulo()}] Servidor Concretizza rodando na porta ${PORT}`)
   console.log(`[${getDataSaoPaulo()}] Ambiente: ${process.env.NODE_ENV || "development"}`)
 })
 
 process.on("SIGINT", () => {
   pool.end()
-  process.exit()
+  server.close(() => {
+    console.log(`[${getDataSaoPaulo()}] Servidor encerrado`)
+    process.exit()
+  })
 })
