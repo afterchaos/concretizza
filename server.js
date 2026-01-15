@@ -498,13 +498,16 @@ app.post(
     const { nome, telefone, email, interesse, valor, status, observacoes, data, tags } = req.body
     const usuarioResponsavel = req.usuario.id
     const dataCliente = data || new Date().toISOString().split("T")[0]
-    
-    console.log(`[${getDataSaoPaulo()}] [CLIENTES] Criando novo cliente:`, { nome, telefone, email, interesse, valor, status, observacoes, data: dataCliente, usuarioResponsavel, tags })
-    
+
+    // Atribuir automaticamente o cliente ao usuário responsável por criá-lo
+    const atribuidoA = usuarioResponsavel
+
+    console.log(`[${getDataSaoPaulo()}] [CLIENTES] Criando novo cliente:`, { nome, telefone, email, interesse, valor, status, observacoes, data: dataCliente, usuarioResponsavel, atribuidoA, tags })
+
     try {
       const result = await dbQuery(
-        "INSERT INTO clientes (nome, telefone, email, interesse, valor, status, observacoes, data, usuario_id, tags) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id",
-        [nome, telefone, email || null, interesse, valor || null, status, observacoes || null, dataCliente, usuarioResponsavel, tags || null]
+        "INSERT INTO clientes (nome, telefone, email, interesse, valor, status, observacoes, data, usuario_id, atribuido_a, tags) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id",
+        [nome, telefone, email || null, interesse, valor || null, status, observacoes || null, dataCliente, usuarioResponsavel, atribuidoA, tags || null]
       )
       const clienteId = result.rows[0]?.id
       console.log(`[${getDataSaoPaulo()}] [CLIENTES] Cliente criado com sucesso, ID:`, clienteId)
