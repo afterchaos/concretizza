@@ -214,7 +214,7 @@ function renderizarTabela() {
   }
 
   tbody.innerHTML = filtrados.map(a => {
-    const corretorNome = a.corretor_nome || a.usuario_nome || '-'
+    const corretorNome = a.corretor_nome || ''
     const corretorCell = isAdminUser ? `<td>${corretorNome}</td>` : ''
 
     return `

@@ -1187,8 +1187,8 @@ app.get("/api/agendamentos", autenticar, async (req, res) => {
     let params = []
 
     if (isCorretor && !isAdmin) {
-      query += " WHERE a.usuario_id = $1"
-      params = [usuarioId]
+      query += " WHERE a.usuario_id = $1 OR a.corretor_id = $2"
+      params = [usuarioId, usuarioId]
     }
 
     query += " ORDER BY a.data ASC, a.hora ASC"
