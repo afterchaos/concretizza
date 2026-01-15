@@ -515,8 +515,12 @@ app.post(
     const usuarioResponsavel = req.usuario.id
     const dataCliente = data || new Date().toISOString().split("T")[0]
 
-    // Atribuir automaticamente o cliente ao usuário responsável por criá-lo
-    const atribuidoA = usuarioResponsavel
+    // Verificar se o usuário é apenas corretor (sem admin ou head-admin)
+    const cargosUsuario = req.usuario.cargo ? req.usuario.cargo.toLowerCase().split(',').map(c => c.trim()) : []
+    const isOnlyCorretor = cargosUsuario.includes("corretor") && !cargosUsuario.includes("admin") && !cargosUsuario.includes("head-admin")
+
+    // Atribuir automaticamente o cliente apenas se for corretor (sem admin/head-admin)
+    const atribuidoA = isOnlyCorretor ? usuarioResponsavel : null
 
     console.log(`[${getDataSaoPaulo()}] [CLIENTES] Criando novo cliente:`, { nome, telefone, email, interesse, valor, status, observacoes, data: dataCliente, usuarioResponsavel, atribuidoA, tags })
 
