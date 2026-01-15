@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Concretizza - Agendamentos</title>
+    <title>Concretizza - Captações</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/styles/agendamentos.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/styles/captacoes.css">
 </head>
 <body class="app-page">
     <aside class="sidebar">
@@ -33,11 +32,11 @@
                 <i class="fas fa-users"></i>
                 <span>Clientes</span>
             </a>
-            <a href="/agendamentos" class="nav-item active">
+            <a href="/agendamentos" class="nav-item">
                 <i class="fas fa-calendar"></i>
                 <span>Agendamentos</span>
             </a>
-            <a href="/captacoes" class="nav-item">
+            <a href="/captacoes" class="nav-item active">
                 <i class="fas fa-home"></i>
                 <span>Captações</span>
             </a>
@@ -76,7 +75,7 @@
                 <button class="sidebar-toggle" id="sidebarToggleMobile">
                     <i class="fas fa-bars"></i>
                 </button>
-                <h1>Agendamentos</h1>
+                <h1>Captações</h1>
             </div>
             <div class="header-right">
                 <div class="user-info">
@@ -88,81 +87,21 @@
         </header>
 
         <div class="page-content">
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-icon">
-                        <i class="fas fa-calendar-check"></i>
-                    </div>
-                    <div class="stat-info">
-                        <h3 id="totalAgendamentos">0</h3>
-                        <p>Total de Agendamentos</p>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon">
-                        <i class="fas fa-clock"></i>
-                    </div>
-                    <div class="stat-info">
-                        <h3 id="agendamentosProximos">0</h3>
-                        <p>Próximos 7 dias</p>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
-                    <div class="stat-info">
-                        <h3 id="agendamentosConcluidos">0</h3>
-                        <p>Concluídos</p>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon">
-                        <i class="fas fa-times-circle"></i>
-                    </div>
-                    <div class="stat-info">
-                        <h3 id="agendamentosCancelados">0</h3>
-                        <p>Cancelados</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="chart-section">
-                <div class="chart-header">
-                    <h2>Visão Geral de Agendamentos</h2>
-                    <select id="chartPeriod" class="select-input" style="max-width: 200px;">
-                        <option value="week">Última Semana</option>
-                        <option value="month">Último Mês</option>
-                        <option value="year">Último Ano</option>
-                    </select>
-                </div>
-                <div class="chart-container">
-                    <canvas id="agendamentosChart"></canvas>
-                </div>
-            </div>
-
             <div class="content-card">
                 <div class="card-header-section">
-                    <h2>Gerenciar Agendamentos</h2>
-                    <button class="btn-primary" id="btnNovoAgendamento">
-                        <i class="fas fa-plus"></i> Novo Agendamento
+                    <h2>Gerenciar Captações</h2>
+                    <button class="btn-primary" id="btnNovaCaptacao" style="display: none;">
+                        <i class="fas fa-plus"></i> Nova Captação
                     </button>
                 </div>
 
                 <div class="filter-bar">
-                    <input type="text" id="searchAgendamentos" placeholder="Buscar por cliente ou descrição..." class="search-input">
-                    <input type="date" id="filterData" class="select-input">
-                    <select id="filterStatus" class="select-input">
-                        <option value="">Todos os status</option>
-                        <option value="agendado">Agendado</option>
-                        <option value="concluido">Concluído</option>
-                        <option value="cancelado">Cancelado</option>
-                    </select>
-                    <select id="filterTipo" class="select-input">
-                        <option value="">Todos os tipos</option>
-                        <option value="visita">Visita</option>
-                        <option value="reuniao">Reunião</option>
-                        <option value="assinatura">Assinatura</option>
+                    <input type="text" id="searchCaptacoes" placeholder="Buscar por título, região ou objetivo..." class="search-input">
+                    <select id="filterPrioridade" class="select-input">
+                        <option value="">Todas as prioridades</option>
+                        <option value="media">Média</option>
+                        <option value="alta">Alta</option>
+                        <option value="imediata">Imediata</option>
                     </select>
                 </div>
 
@@ -170,18 +109,19 @@
                     <table class="table">
                         <thead>
                             <tr>
-                                <th>Cliente</th>
-                                <th>Data</th>
-                                <th>Hora</th>
-                                <th>Tipo</th>
-                                <th>Status</th>
-                                <th>Local</th>
-                                <th>Ações</th>
+                        <th>Título</th>
+                        <th>Região</th>
+                        <th>Valor Estimado</th>
+                        <th>Prioridade</th>
+                        <th>Objetivo</th>
+                        <th>Criado por</th>
+                        <th>Data</th>
+                        <th>Ações</th>
                             </tr>
                         </thead>
-                        <tbody id="agendamentosTable">
+                        <tbody id="captacoesTable">
                             <tr>
-                                <td colspan="7" class="text-center">Nenhum agendamento encontrado</td>
+                                <td colspan="8" class="text-center">Nenhuma captação encontrada</td>
                             </tr>
                         </tbody>
                     </table>
@@ -200,56 +140,45 @@
         </div>
     </main>
 
-    <div id="modalAgendamento" class="modal">
+    <div id="modalCaptacao" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 id="modalTitle">Novo Agendamento</h2>
+                <h2 id="modalTitle">Nova Captação</h2>
                 <button class="modal-close" id="closeModal">&times;</button>
             </div>
             <div class="modal-body">
-                <form id="formAgendamento" class="form">
+                <form id="formCaptacao" class="form">
                     <div class="form-group">
-                        <label for="agendamentoCliente">Cliente *</label>
-                        <select id="agendamentoCliente" required>
-                            <option value="">Selecione um cliente</option>
+                        <label for="captacaoTitulo">Título *</label>
+                        <input type="text" id="captacaoTitulo" required placeholder="Nome da captação/imóvel">
+                    </div>
+                    <div class="form-group">
+                        <label for="captacaoRegiao">Região *</label>
+                        <input type="text" id="captacaoRegiao" required placeholder="Região da captação">
+                    </div>
+                    <div class="form-group">
+                        <label for="captacaoValor">Valor Estimado (R$)</label>
+                        <input type="number" id="captacaoValor" placeholder="Valor aproximado">
+                    </div>
+                    <div class="form-group">
+                        <label for="captacaoPrioridade">Prioridade *</label>
+                        <select id="captacaoPrioridade" required>
+                            <option value="media" selected>Média</option>
+                            <option value="alta">Alta</option>
+                            <option value="imediata">Imediata</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="agendamentoData">Data *</label>
-                        <input type="date" id="agendamentoData" required>
+                        <label for="captacaoObjetivo">Objetivo *</label>
+                        <textarea id="captacaoObjetivo" rows="3" required placeholder="Descreva o objetivo desta captação..."></textarea>
                     </div>
                     <div class="form-group">
-                        <label for="agendamentoHora">Hora *</label>
-                        <input type="time" id="agendamentoHora" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="agendamentoTipo">Tipo *</label>
-                        <select id="agendamentoTipo" required>
-                            <option value="visita">Visita</option>
-                            <option value="reuniao">Reunião</option>
-                            <option value="assinatura">Assinatura</option>
-                            <option value="outro">Outro</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="agendamentoLocal">Local</label>
-                        <input type="text" id="agendamentoLocal" placeholder="Endereço ou link da reunião">
-                    </div>
-                    <div class="form-group">
-                        <label for="agendamentoStatus">Status *</label>
-                        <select id="agendamentoStatus" required>
-                            <option value="agendado">Agendado</option>
-                            <option value="concluido">Concluído</option>
-                            <option value="cancelado">Cancelado</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="agendamentoObservacoes">Observações</label>
-                        <textarea id="agendamentoObservacoes" rows="3" placeholder="Detalhes adicionais..."></textarea>
+                        <label for="captacaoObservacoes">Observações</label>
+                        <textarea id="captacaoObservacoes" rows="4" placeholder="Detalhes adicionais sobre a captação..."></textarea>
                     </div>
                     <div class="form-actions">
                         <button type="button" class="btn-secondary modal-close-btn">Cancelar</button>
-                        <button type="submit" class="btn-primary">Salvar Agendamento</button>
+                        <button type="submit" class="btn-primary">Salvar Captação</button>
                     </div>
                 </form>
             </div>
@@ -267,7 +196,7 @@
                     <div class="confirmation-icon">
                         <i class="fas fa-exclamation-triangle"></i>
                     </div>
-                    <p>Tem certeza que deseja excluir o agendamento de <strong id="detalhesAgendamentoExcluir">-</strong>?</p>
+                    <p>Tem certeza que deseja excluir a captação <strong id="detalhesCaptacaoExcluir">-</strong>?</p>
                     <p class="confirmation-warning">Esta ação não pode ser desfeita.</p>
                 </div>
                 <div class="confirmation-actions">
@@ -308,7 +237,6 @@
 
     <script src="/scripts/utils/api.js?v=2"></script>
     <script src="/scripts/utils/permissions.js?v=2"></script>
-    <script src="/scripts/utils/data.js?v=2"></script>
-    <script src="/scripts/agendamentos.js?v=1"></script>
+    <script src="/scripts/captacoes.js?v=1"></script>
 </body>
 </html>

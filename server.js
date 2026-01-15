@@ -186,6 +186,22 @@ async function initializeTables() {
     console.log(`[${getDataSaoPaulo()}] ✓ Tabela agendamentos criada`)
 
     await dbQuery(`
+      CREATE TABLE IF NOT EXISTS captacoes (
+        id SERIAL PRIMARY KEY,
+        titulo TEXT NOT NULL,
+        regiao TEXT NOT NULL,
+        valor_estimado TEXT,
+        objetivo TEXT,
+        prioridade TEXT DEFAULT 'media',
+        observacoes TEXT,
+        usuario_id INTEGER NOT NULL REFERENCES usuarios(id),
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+    console.log(`[${getDataSaoPaulo()}] ✓ Tabela captacoes criada`)
+
+    await dbQuery(`
       CREATE TABLE IF NOT EXISTS bug_reports (
         id SERIAL PRIMARY KEY,
         titulo TEXT NOT NULL,
@@ -1291,6 +1307,113 @@ app.delete(
   }
 )
 
+// ===== ROTAS DE CAPTAÇÕES =====
+app.get("/api/captacoes", autenticar, async (req, res) => {
+  try {
+    const result = await dbQuery(`
+      SELECT c.*, u.nome as usuario_nome
+      FROM captacoes c
+      LEFT JOIN usuarios u ON c.usuario_id = u.id
+      ORDER BY c.prioridade DESC, c.criado_em DESC
+    `)
+    res.json(result.rows || [])
+  } catch (err) {
+    console.error(`[${getDataSaoPaulo()}] [CAPTAÇÕES] Erro ao buscar captações:`, err)
+    res.status(500).json({ error: "Erro ao buscar captações: " + err.message })
+  }
+})
+
+app.post(
+  "/api/captacoes",
+  autenticar,
+  autorizar("admin", "head-admin"),
+  [
+    body("titulo").trim().notEmpty().withMessage("Título é obrigatório"),
+    body("regiao").trim().notEmpty().withMessage("Região é obrigatória")
+  ],
+  validarRequisicao,
+  async (req, res) => {
+    const { titulo, regiao, valor_estimado, prioridade, objetivo, observacoes } = req.body
+    const usuarioId = req.usuario.id
+
+    try {
+      const result = await dbQuery(
+        "INSERT INTO captacoes (titulo, regiao, valor_estimado, prioridade, objetivo, observacoes, usuario_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
+        [titulo, regiao, valor_estimado || null, prioridade || 'media', objetivo || null, observacoes || null, usuarioId]
+      )
+
+      const captacaoId = result.rows[0]?.id
+      await registrarLog(req.usuario.id, "CRIAR", "Captações", `Captação criada: ${titulo}`, titulo, req)
+
+      res.status(201).json({ id: captacaoId, message: "Captação criada com sucesso" })
+    } catch (err) {
+      console.error(`[${getDataSaoPaulo()}] [CAPTAÇÕES] Erro ao criar captação:`, err)
+      res.status(500).json({ error: "Erro ao criar captação: " + err.message })
+    }
+  }
+)
+
+app.put(
+  "/api/captacoes/:id",
+  autenticar,
+  autorizar("admin", "head-admin"),
+  [param("id").isInt().withMessage("ID inválido")],
+  validarRequisicao,
+  async (req, res) => {
+    const { id } = req.params
+    const { titulo, regiao, valor_estimado, prioridade, objetivo, observacoes } = req.body
+
+    try {
+      const captacao = await dbQuery("SELECT titulo FROM captacoes WHERE id = $1", [id])
+      if (captacao.rows.length === 0) {
+        return res.status(404).json({ error: "Captação não encontrada" })
+      }
+
+      const tituloAtual = captacao.rows[0].titulo
+
+      await dbQuery(
+        "UPDATE captacoes SET titulo = COALESCE($1, titulo), regiao = COALESCE($2, regiao), valor_estimado = COALESCE($3, valor_estimado), prioridade = COALESCE($4, prioridade), objetivo = COALESCE($5, objetivo), observacoes = COALESCE($6, observacoes), atualizado_em = CURRENT_TIMESTAMP WHERE id = $7",
+        [titulo, regiao, valor_estimado, prioridade, objetivo, observacoes, id]
+      )
+
+      const tituloFinal = titulo || tituloAtual
+      await registrarLog(req.usuario.id, "EDITAR", "Captações", `Captação atualizada: ${tituloFinal}`, tituloFinal, req)
+      res.json({ success: true, message: "Captação atualizada com sucesso" })
+    } catch (err) {
+      console.error(`[${getDataSaoPaulo()}] [CAPTAÇÕES] Erro ao atualizar captação:`, err)
+      res.status(500).json({ error: "Erro ao atualizar captação: " + err.message })
+    }
+  }
+)
+
+app.delete(
+  "/api/captacoes/:id",
+  autenticar,
+  autorizar("admin", "head-admin"),
+  [param("id").isInt().withMessage("ID inválido")],
+  validarRequisicao,
+  async (req, res) => {
+    const { id } = req.params
+
+    try {
+      const captacao = await dbQuery("SELECT titulo FROM captacoes WHERE id = $1", [id])
+      if (captacao.rows.length === 0) {
+        return res.status(404).json({ error: "Captação não encontrada" })
+      }
+
+      const titulo = captacao.rows[0].titulo
+
+      await dbQuery("DELETE FROM captacoes WHERE id = $1", [id])
+
+      await registrarLog(req.usuario.id, "DELETAR", "Captações", `Captação deletada: ${titulo}`, titulo, req)
+      res.json({ success: true, message: "Captação deletada com sucesso" })
+    } catch (err) {
+      console.error(`[${getDataSaoPaulo()}] [CAPTAÇÕES] Erro ao deletar captação:`, err)
+      res.status(500).json({ error: "Erro ao deletar captação: " + err.message })
+    }
+  }
+)
+
 //// ===== ROTAS DE BUG REPORTS (PARA ADMINS E HEAD ADMINS) =====
 app.get("/api/bug-reports", autenticar, autorizar("admin", "head-admin"), async (req, res) => {
   try {
@@ -1542,6 +1665,10 @@ app.get("/logs", (req, res) => {
 
 app.get("/bug-reports", (req, res) => {
   res.sendFile(path.join(__dirname, "src", "pages", "bug-reports.html"))
+})
+
+app.get("/captacoes", (req, res) => {
+  res.sendFile(path.join(__dirname, "src", "pages", "captacoes.html"))
 })
 
 app.get("/pages/:page", (req, res) => {
