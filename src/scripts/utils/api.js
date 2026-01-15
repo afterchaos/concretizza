@@ -41,16 +41,22 @@ async function fazerRequisicao(url, options = {}) {
       throw new Error("Muitas requisições. Tente novamente em alguns segundos.")
     }
 
-    if (response.status === 401 || response.status === 403) {
+    if (response.status === 401) {
       const responseData = await response.json().catch(() => ({}))
       console.error(`[API] Erro ${response.status} - ${responseData.error || 'Token inválido'}`)
       console.log("[API] Token atual:", token?.substring(0, 20) + "...")
       console.log("[API] Usuário logado:", localStorage.getItem("usuarioLogado"))
-      
+
       localStorage.removeItem("token")
       localStorage.removeItem("usuarioLogado")
       window.location.href = "/"
       return null
+    }
+
+    if (response.status === 403) {
+      const responseData = await response.json().catch(() => ({}))
+      console.error(`[API] Erro ${response.status} - ${responseData.error || 'Permissão negada'}`)
+      throw new Error(responseData.error || "Permissão negada")
     }
 
     const contentType = response.headers.get("content-type")

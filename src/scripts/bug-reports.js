@@ -420,6 +420,29 @@ function abrirModalBugReport(reportId = null) {
     delete form.dataset.editId
   }
 
+  // Trigger validation after setting values
+  const tituloInput = document.getElementById("bugReportTitulo")
+  const descricaoTextarea = document.getElementById("bugReportDescricao")
+  const btnSalvarBugReport = document.getElementById("btnSalvarBugReport")
+
+  if (tituloInput && descricaoTextarea && btnSalvarBugReport) {
+    const validarCampos = () => {
+      const tituloPreenchido = tituloInput.value.trim().length > 0
+      const descricaoPreenchida = descricaoTextarea.value.trim().length > 0
+
+      if (tituloPreenchido && descricaoPreenchida) {
+        btnSalvarBugReport.classList.remove("btn-disabled")
+        btnSalvarBugReport.classList.add("btn-primary")
+      } else {
+        btnSalvarBugReport.classList.remove("btn-primary")
+        btnSalvarBugReport.classList.add("btn-disabled")
+      }
+    }
+
+    // Run validation after modal opens
+    validarCampos()
+  }
+
   modal.style.display = "flex"
 }
 

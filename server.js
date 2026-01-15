@@ -457,8 +457,7 @@ app.post(
   }
 )
 
-// ===== ROTAS DE CLIENTES =====
-app.get("/api/clientes", autenticar, (req, res) => {
+app.get("/api/clientes", autenticar, autorizar("admin", "head-admin", "corretor"), (req, res) => {
   const cargos = req.usuario.cargo ? req.usuario.cargo.toLowerCase().split(',').map(c => c.trim()) : []
   const isCorretor = cargos.includes("corretor")
   const isAdmin = cargos.includes("admin") || cargos.includes("head-admin")
@@ -537,18 +536,18 @@ app.put(
     
     try {
       if (isCorretor && !isAdmin) {
-        const cliente = await dbQuery("SELECT usuario_id FROM clientes WHERE id = $1", [id])
+        const cliente = await dbQuery("SELECT usuario_id, atribuido_a FROM clientes WHERE id = $1", [id])
         if (cliente.rows.length === 0) {
           return res.status(404).json({ error: "Cliente não encontrado" })
         }
-        if (cliente.rows[0].usuario_id !== req.usuario.id) {
-          console.log(`[${getDataSaoPaulo()}] [CLIENTES PUT] Corretor tentou editar cliente de outro usuário`)
+        if (cliente.rows[0].usuario_id !== req.usuario.id && cliente.rows[0].atribuido_a !== req.usuario.id) {
+          console.log(`[${getDataSaoPaulo()}] [CLIENTES PUT] Corretor tentou editar cliente de outro usuário - usuario_id: ${cliente.rows[0].usuario_id}, atribuido_a: ${cliente.rows[0].atribuido_a}, req.usuario.id: ${req.usuario.id}`)
           return res.status(403).json({ error: "Você não tem permissão para editar este cliente" })
         }
 
         const result = await dbQuery(
-          "UPDATE clientes SET interesse = $1, status = $2, atualizado_em = CURRENT_TIMESTAMP WHERE id = $3",
-          [interesse || null, status || null, id]
+          "UPDATE clientes SET interesse = $1, status = $2, observacoes = $3, atualizado_em = CURRENT_TIMESTAMP WHERE id = $4",
+          [interesse || null, status || null, observacoes || null, id]
         )
         if (result.rowCount === 0) return res.status(404).json({ error: "Cliente não encontrado" })
         await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Cliente atualizado (restrito): ${id}`, id, req)
