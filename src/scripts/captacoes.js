@@ -347,7 +347,6 @@ async function salvarCaptacao() {
   const dadosCaptacao = {
     titulo: document.getElementById("captacaoTitulo").value,
     regiao: document.getElementById("captacaoRegiao").value,
-    endereco: document.getElementById("captacaoEndereco").value,
     valor_estimado: document.getElementById("captacaoValor").value,
     prioridade: document.getElementById("captacaoPrioridade").value,
     objetivo: document.getElementById("captacaoObjetivo").value,
@@ -393,7 +392,6 @@ window.editarCaptacao = function(id) {
 
   document.getElementById("captacaoTitulo").value = captacao.titulo
   document.getElementById("captacaoRegiao").value = captacao.regiao
-  document.getElementById("captacaoEndereco").value = captacao.endereco || ""
   document.getElementById("captacaoValor").value = captacao.valor_estimado || ""
   document.getElementById("captacaoPrioridade").value = captacao.prioridade
   document.getElementById("captacaoObjetivo").value = captacao.objetivo || ""
@@ -478,7 +476,6 @@ window.mostrarDetalhesCaptacao = function(id) {
 
   // Atualizar campos de detalhes
   document.getElementById("detalheRegiao").textContent = captacao.regiao || "-"
-  document.getElementById("detalheEndereco").textContent = captacao.endereco || "-"
   document.getElementById("detalheValor").textContent = captacao.valor_estimado ? 'R$ ' + captacao.valor_estimado : "-"
   document.getElementById("detalheDataCriacao").textContent = formatarData(captacao.criado_em) || "-"
   document.getElementById("detalheCriadoPor").textContent = captacao.usuario_nome || "-"

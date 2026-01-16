@@ -1749,8 +1749,8 @@ app.get("/bug-reports", (req, res) => {
   res.sendFile(path.join(__dirname, "src", "pages", "bug-reports.html"))
 })
 
-app.get("/captacoes", (req, res) => {
-  res.sendFile(path.join(__dirname, "src", "pages", "captacoes.html"))
+app.get("/busca", (req, res) => {
+  res.sendFile(path.join(__dirname, "src", "pages", "busca.html"))
 })
 
 app.get("/pages/:page", (req, res) => {
