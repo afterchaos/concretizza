@@ -236,13 +236,15 @@ async function initializeTables() {
       }
     }
 
-    // Permitir que endereco seja NULL se existir
+    // Remover coluna endereco se existir (já que usamos regiao agora)
     try {
-      await dbQuery("ALTER TABLE captacoes MODIFY COLUMN endereco TEXT")
+      await dbQuery("ALTER TABLE captacoes DROP COLUMN endereco")
+      console.log(`[${getDataSaoPaulo()}] ✓ Coluna endereco removida da tabela captacoes`)
     } catch (e) {
-      // SQLite não suporta MODIFY COLUMN diretamente, tentar recriar a tabela se necessário
-      if (!e.message?.includes("no such column") && !e.message?.includes("duplicate column")) {
-        console.log(`[${getDataSaoPaulo()}] Nota: Tentando ajustar coluna endereco:`, e.message)
+      if (e.message?.includes("no such column")) {
+        console.log(`[${getDataSaoPaulo()}] ✓ Coluna endereco já não existe`)
+      } else if (!e.message?.includes("duplicate column")) {
+        console.log(`[${getDataSaoPaulo()}] Nota: Erro ao remover coluna endereco:`, e.message)
       }
     }
 
@@ -716,45 +718,36 @@ app.delete(
 )
 
 app.post(
-  "/api/clientes/:id/atribuir",
+  "/api/captacoes",
   autenticar,
   autorizar("admin", "head-admin"),
   [
-    param("id").isInt().withMessage("ID inválido"),
-    body("atribuido_a").optional({ checkFalsy: true }).isInt().withMessage("ID do usuário inválido")
+    body("titulo").trim().notEmpty().withMessage("Título é obrigatório"),
+    body("objetivo").trim().notEmpty().withMessage("Objetivo é obrigatório")
   ],
   validarRequisicao,
   async (req, res) => {
-    const { id } = req.params
-    const { atribuido_a } = req.body
+    const { titulo, regiao, valor_estimado, prioridade, objetivo, observacoes } = req.body
+    const usuarioId = req.usuario.id
 
     try {
-      const cliente = await dbQuery("SELECT nome FROM clientes WHERE id = $1", [parseInt(id)])
-      if (cliente.rows.length === 0) {
-        return res.status(404).json({ error: "Cliente não encontrado" })
-      }
-
-      if (atribuido_a) {
-        const usuario = await dbQuery("SELECT id, nome FROM usuarios WHERE id = $1", [parseInt(atribuido_a)])
-        if (usuario.rows.length === 0) {
-          return res.status(404).json({ error: "Usuário não encontrado" })
-        }
-      }
-
-      await dbQuery(
-        "UPDATE clientes SET atribuido_a = $1, atualizado_em = CURRENT_TIMESTAMP WHERE id = $2",
-        [atribuido_a ? parseInt(atribuido_a) : null, parseInt(id)]
+      const result = await dbQuery(
+        "INSERT INTO captacoes (titulo, regiao, valor_estimado, prioridade, objetivo, observacoes, usuario_id) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+        [titulo, regiao, valor_estimado, prioridade, objetivo, observacoes, usuarioId]
       )
 
-      const nomeAtribuido = atribuido_a ? (await dbQuery("SELECT nome FROM usuarios WHERE id = $1", [parseInt(atribuido_a)])).rows[0]?.nome : "Ninguém"
-      await registrarLog(req.usuario.id, "ATRIBUIR", "Clientes", `Cliente "${cliente.rows[0].nome}" atribuído a "${nomeAtribuido}"`, cliente.rows[0].nome, req)
-      res.json({ success: true, message: "Cliente atribuído com sucesso" })
-    } catch (error) {
-      console.error("[CLIENTES ATRIBUIR] Erro ao atribuir cliente:", error)
-      res.status(500).json({ error: "Erro ao atribuir cliente: " + error.message })
+      const captacaoId = result.rows ? result.rows[0]?.id : result.lastID
+      await registrarLog(req.usuario.id, "CRIAR", "Captações", `Captação criada: ${titulo}`, titulo, req)
+
+      res.status(201).json({ id: captacaoId, message: "Captação criada com sucesso" })
+    } catch (err) {
+      console.error(`[${getDataSaoPaulo()}] [CAPTAÇÕES] Erro ao criar captação:`, err)
+      res.status(500).json({ error: "Erro ao criar captação: " + err.message })
     }
   }
 )
+
+
 
 // ===== ROTAS DE USUÁRIOS (APENAS PARA ADMINS) =====
 app.get(
@@ -1410,18 +1403,17 @@ app.post(
   autorizar("admin", "head-admin"),
   [
     body("titulo").trim().notEmpty().withMessage("Título é obrigatório"),
-    body("regiao").trim().notEmpty().withMessage("Região é obrigatória"),
-    body("endereco").trim().notEmpty().withMessage("Endereço é obrigatório")
+    body("objetivo").trim().notEmpty().withMessage("Objetivo é obrigatório")
   ],
   validarRequisicao,
   async (req, res) => {
-    const { titulo, regiao, endereco, valor_estimado, prioridade, objetivo, observacoes } = req.body
+    const { titulo, valor_estimado, prioridade, objetivo, observacoes } = req.body
     const usuarioId = req.usuario.id
 
     try {
       const result = await dbQuery(
-        "INSERT INTO captacoes (titulo, regiao, endereco, valor_estimado, prioridade, objetivo, observacoes, usuario_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-        [titulo, regiao, endereco, valor_estimado || null, prioridade || 'media', objetivo || null, observacoes || null, usuarioId]
+        "INSERT INTO captacoes (titulo, valor_estimado, prioridade, objetivo, observacoes, usuario_id) VALUES ($1, $2, $3, $4, $5, $6)",
+        [titulo, valor_estimado, prioridade, objetivo, observacoes, usuarioId]
       )
 
       const captacaoId = result.rows ? result.rows[0]?.id : result.lastID
@@ -1443,7 +1435,7 @@ app.put(
   validarRequisicao,
   async (req, res) => {
     const { id } = req.params
-    const { titulo, regiao, endereco, valor_estimado, prioridade, objetivo, observacoes } = req.body
+    const { titulo, regiao, valor_estimado, prioridade, objetivo, observacoes } = req.body
 
     try {
       const captacao = await dbQuery("SELECT titulo FROM captacoes WHERE id = $1", [id])
@@ -1454,8 +1446,8 @@ app.put(
       const tituloAtual = captacao.rows[0].titulo
 
       await dbQuery(
-        "UPDATE captacoes SET titulo = COALESCE($1, titulo), regiao = COALESCE($2, regiao), endereco = COALESCE($3, endereco), valor_estimado = COALESCE($4, valor_estimado), prioridade = COALESCE($5, prioridade), objetivo = COALESCE($6, objetivo), observacoes = COALESCE($7, observacoes), atualizado_em = CURRENT_TIMESTAMP WHERE id = $8",
-        [titulo, regiao, endereco, valor_estimado, prioridade, objetivo, observacoes, id]
+        "UPDATE captacoes SET titulo = COALESCE($1, titulo), regiao = COALESCE($2, regiao), valor_estimado = COALESCE($3, valor_estimado), prioridade = COALESCE($4, prioridade), objetivo = COALESCE($5, objetivo), observacoes = COALESCE($6, observacoes), atualizado_em = CURRENT_TIMESTAMP WHERE id = $7",
+        [titulo, regiao, valor_estimado, prioridade, objetivo, observacoes, id]
       )
 
       const tituloFinal = titulo || tituloAtual

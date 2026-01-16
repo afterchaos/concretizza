@@ -131,7 +131,7 @@ function renderizarTabela() {
   })
 
   // Calculate colspan based on permissions
-  let colspan = 8 // base columns
+  let colspan = 9 // base columns
   if (!isCorretor) {
     colspan += 1 // add checkbox column for admins
   }
