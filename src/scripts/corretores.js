@@ -709,7 +709,7 @@ function formatarStatus(status) {
     novo: "Novo",
     "em-atendimento": "Em Atendimento",
     prioridade: "Prioridade",
-    aguardando: "Aguardando",
+    "pré-atendido": "Pré-Atendido",
     finalizado: "Finalizado"
   }
   return mapa[status] || status

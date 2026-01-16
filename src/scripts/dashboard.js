@@ -32,12 +32,12 @@ function atualizarEstatisticas() {
   const totalClientes = clientes.length
   const clientesNovos = clientes.filter((c) => c.status === "novo").length
   const clientesPrioridade = clientes.filter((c) => c.status === "prioridade").length
-  const clientesAguardando = clientes.filter((c) => c.status === "aguardando").length
+  const clientesPreAtendido = clientes.filter((c) => c.status === "pré-atendido").length
 
   document.getElementById("totalClientes").textContent = totalClientes
   document.getElementById("clientesNovos").textContent = clientesNovos
   document.getElementById("clientesPrioridade").textContent = clientesPrioridade
-  document.getElementById("clientesAguardando").textContent = clientesAguardando
+  document.getElementById("clientesAguardando").textContent = clientesPreAtendido
   document.getElementById("agendamentosProximos").textContent = "0"
 }
 
@@ -211,7 +211,7 @@ function formatarStatus(status) {
     novo: "Novo",
     "em-atendimento": "Em Atendimento",
     prioridade: "Prioridade",
-    aguardando: "Aguardando",
+    "pré-atendido": "Pré-Atendido",
     finalizado: "Finalizado"
   }
   return map[status] || status

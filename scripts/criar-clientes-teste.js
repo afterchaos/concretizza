@@ -55,7 +55,7 @@ async function criarClientesTeste() {
         email: "ana.costa@email.com",
         interesse: "comprar",
         valor: "400000",
-        status: "aguardando",
+        status: "pré-atendido",
         observacoes: "Cliente aguardando retorno"
       },
       {

@@ -410,6 +410,8 @@ body.login-page {
   color: var(--color-gray-light);
   margin: 0;
   font-weight: 500;
+  line-height: 1.2;
+  word-wrap: break-word;
 }
 
 .card-header i {
@@ -515,7 +517,7 @@ body.login-page {
   color: #dc2626;
 }
 
-.badge-aguardando {
+.badge-pré-atendido {
   background-color: rgba(245, 158, 11, 0.2);
   color: #f59e0b;
 }
