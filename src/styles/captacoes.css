@@ -376,6 +376,43 @@ body {
   background-color: rgba(255, 215, 0, 0.15);
 }
 
+/* Added checkbox styles matching the premium design */
+.checkbox-input {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--color-gold-primary);
+  border: 2px solid var(--color-border);
+  border-radius: 4px;
+}
+
+/* Added bulk actions bar styles */
+.bulk-actions {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: rgba(255, 215, 0, 0.08);
+  border: 1px solid var(--color-border-gold);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-sm);
+  min-height: 40px;
+}
+
+.bulk-actions span {
+  color: var(--color-gold-primary);
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+/* Smaller bulk action button */
+.bulk-actions .btn-primary,
+.bulk-actions .btn-danger {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  min-height: 36px;
+}
+
 .text-center {
   text-align: center;
   color: var(--color-gray) !important;
@@ -703,6 +740,10 @@ body {
   z-index: 9999;
 }
 
+.toast.show {
+  display: flex;
+}
+
 .toast-content {
   display: flex;
   align-items: center;
@@ -810,6 +851,175 @@ body {
 .confirmation-actions button {
   flex: 1;
   justify-content: center;
+}
+
+/* ===== DETAILS MODAL ===== */
+.modal-details {
+  max-width: 700px;
+  width: 100%;
+}
+
+/* ===== HEADER DO CLIENTE — FIX FINAL ===== */
+.user-profile-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-lg);
+    padding: var(--spacing-lg);
+    background: rgba(255, 215, 0, 0.05);
+    border: 1px solid var(--color-border-gold);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--spacing-xl);
+}
+
+/* Avatar */
+.profile-avatar {
+    width: 70px;
+    height: 70px;
+    min-width: 70px;
+    border-radius: 50%;
+    background: var(--color-gold-primary);
+    color: var(--color-background);
+    font-size: 32px;
+    font-weight: 700;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+/* Bloco nome + status */
+.profile-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    line-height: 1.4;
+    flex: 1;
+}
+
+/* Nome */
+.profile-info h3 {
+    margin: 0 0 var(--spacing-sm) 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--color-white);
+}
+
+/* Badge */
+.badge {
+    display: inline-flex;
+    width: fit-content;
+    padding: var(--spacing-xs) var(--spacing-md);
+    border-radius: var(--radius-md);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: rgba(255, 215, 0, 0.2);
+    color: var(--color-gold-primary);
+    border: 1px solid rgba(255, 215, 0, 0.5);
+}
+
+/* Details grid */
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+}
+
+.detail-item {
+  display: flex;
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg);
+  background: rgba(255, 215, 0, 0.03);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: all 0.3s ease;
+}
+
+.detail-item:hover {
+  background: rgba(255, 215, 0, 0.08);
+  border-color: var(--color-border-gold);
+  transform: translateY(-2px);
+}
+
+.detail-full {
+  grid-column: 1 / -1;
+}
+
+.detail-icon {
+  width: 45px;
+  height: 45px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 215, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.detail-icon i {
+  font-size: 1.25rem;
+  color: var(--color-gold-primary);
+}
+
+.detail-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.detail-label {
+  font-size: 0.75rem;
+  color: var(--color-gray);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.detail-value {
+  font-size: 1rem;
+  color: var(--color-white);
+  font-weight: 500;
+  word-break: break-word;
+}
+
+#detalheObservacoes {
+  white-space: pre-wrap;
+}
+
+.details-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  justify-content: flex-end;
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--color-border);
+}
+
+/* Botões específicos do modal de detalhes das captações */
+.details-actions button {
+  padding: 0.75rem 1.25rem;
+  font-size: 0.9375rem;
+  min-width: 120px;
+}
+
+.details-actions #detailsAdminActions {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-left: var(--spacing-lg);
+}
+
+.details-actions #detailsAdminActions button {
+  padding: 0.75rem 1.25rem;
+  font-size: 0.9375rem;
+  min-width: 140px;
+}
+
+/* Center text in close button */
+.details-actions #btnFecharDetalhes {
+  justify-content: center;
+  text-align: center;
 }
 
 /* ===== RESPONSIVIDADE ===== */

@@ -113,7 +113,17 @@ function dbQuery(sql, params = []) {
         else resolve(result)
       })
     } else {
-      db.query(sql, params).then(resolve).catch(reject)
+      if (sql.trim().toUpperCase().startsWith('SELECT')) {
+        db.all(sql, params, (err, rows) => {
+          if (err) reject(err)
+          else resolve({ rows })
+        })
+      } else {
+        db.run(sql, params, function(err) {
+          if (err) reject(err)
+          else resolve({ lastID: this.lastID, changes: this.changes, rowCount: this.changes })
+        })
+      }
     }
   })
 }
@@ -200,6 +210,65 @@ async function initializeTables() {
       )
     `)
     console.log(`[${getDataSaoPaulo()}] ✓ Tabela captacoes criada`)
+
+    // Garantir que todas as colunas existam (migrações)
+    try {
+      await dbQuery("ALTER TABLE captacoes ADD COLUMN regiao TEXT")
+    } catch (e) {
+      if (!e.message?.includes("already exists") && !e.message?.includes("duplicate column")) {
+        console.log(`[${getDataSaoPaulo()}] Nota: Coluna regiao já existe ou erro ao adicionar:`, e.message)
+      }
+    }
+
+    try {
+      await dbQuery("ALTER TABLE captacoes ADD COLUMN valor_estimado TEXT")
+    } catch (e) {
+      if (!e.message?.includes("already exists") && !e.message?.includes("duplicate column")) {
+        console.log(`[${getDataSaoPaulo()}] Nota: Coluna valor_estimado já existe ou erro ao adicionar:`, e.message)
+      }
+    }
+
+    try {
+      await dbQuery("ALTER TABLE captacoes ADD COLUMN objetivo TEXT")
+    } catch (e) {
+      if (!e.message?.includes("already exists") && !e.message?.includes("duplicate column")) {
+        console.log(`[${getDataSaoPaulo()}] Nota: Coluna objetivo já existe ou erro ao adicionar:`, e.message)
+      }
+    }
+
+    // Permitir que endereco seja NULL se existir
+    try {
+      await dbQuery("ALTER TABLE captacoes MODIFY COLUMN endereco TEXT")
+    } catch (e) {
+      // SQLite não suporta MODIFY COLUMN diretamente, tentar recriar a tabela se necessário
+      if (!e.message?.includes("no such column") && !e.message?.includes("duplicate column")) {
+        console.log(`[${getDataSaoPaulo()}] Nota: Tentando ajustar coluna endereco:`, e.message)
+      }
+    }
+
+    try {
+      await dbQuery("ALTER TABLE captacoes ADD COLUMN prioridade TEXT DEFAULT 'media'")
+    } catch (e) {
+      if (!e.message?.includes("already exists") && !e.message?.includes("duplicate column")) {
+        console.log(`[${getDataSaoPaulo()}] Nota: Coluna prioridade já existe ou erro ao adicionar:`, e.message)
+      }
+    }
+
+    try {
+      await dbQuery("ALTER TABLE captacoes ADD COLUMN observacoes TEXT")
+    } catch (e) {
+      if (!e.message?.includes("already exists") && !e.message?.includes("duplicate column")) {
+        console.log(`[${getDataSaoPaulo()}] Nota: Coluna observacoes já existe ou erro ao adicionar:`, e.message)
+      }
+    }
+
+    try {
+      await dbQuery("ALTER TABLE captacoes ADD COLUMN usuario_id INTEGER REFERENCES usuarios(id)")
+    } catch (e) {
+      if (!e.message?.includes("already exists") && !e.message?.includes("duplicate column")) {
+        console.log(`[${getDataSaoPaulo()}] Nota: Coluna usuario_id já existe ou erro ao adicionar:`, e.message)
+      }
+    }
 
     await dbQuery(`
       CREATE TABLE IF NOT EXISTS bug_reports (
@@ -534,10 +603,10 @@ app.post(
 
     try {
       const result = await dbQuery(
-        "INSERT INTO clientes (nome, telefone, email, interesse, valor, status, observacoes, data, usuario_id, atribuido_a, tags) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id",
+        "INSERT INTO clientes (nome, telefone, email, interesse, valor, status, observacoes, data, usuario_id, atribuido_a, tags) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
         [nome, telefone, email || null, interesse, valor || null, status, observacoes || null, dataCliente, usuarioResponsavel, atribuidoA, tags || null]
       )
-      const clienteId = result.rows[0]?.id
+      const clienteId = result.rows ? result.rows[0]?.id : result.lastID
       console.log(`[${getDataSaoPaulo()}] [CLIENTES] Cliente criado com sucesso, ID:`, clienteId)
       await registrarLog(req.usuario.id, "CRIAR", "Clientes", `Cliente criado: ${nome}`, nome, req)
       res.status(201).json({ id: clienteId, message: "Cliente criado com sucesso" })
@@ -743,10 +812,10 @@ app.post(
       })
 
       const result = await dbQuery(
-        "INSERT INTO usuarios (nome, email, username, senha, permissao, status, telefone, departamento, ultimoAcesso) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
+        "INSERT INTO usuarios (nome, email, username, senha, permissao, status, telefone, departamento, ultimoAcesso) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
         [nome, email, username, senhaHash, permissao.toLowerCase(), status || "ativo", telefone || null, departamento || null, new Date().toISOString()]
       )
-      const usuarioId = result.rows[0]?.id
+      const usuarioId = result.rows ? result.rows[0]?.id : result.lastID
       await registrarLog(req.usuario.id, "CRIAR", "Usuários", `Usuário criado: ${username}`, nome, req)
       res.status(201).json({ id: usuarioId, message: "Usuário criado com sucesso" })
     } catch (err) {
@@ -1224,11 +1293,11 @@ app.post(
       const nomeCliente = cliente.rows[0].nome
 
       const result = await dbQuery(
-        "INSERT INTO agendamentos (cliente_id, corretor_id, usuario_id, data, hora, tipo, status, observacoes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+        "INSERT INTO agendamentos (cliente_id, corretor_id, usuario_id, data, hora, tipo, status, observacoes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
         [cliente_id, corretor_id || null, usuarioId, data, hora, tipo, status || 'agendado', observacoes || null]
       )
 
-      const agendamentoId = result.rows[0]?.id
+      const agendamentoId = result.rows ? result.rows[0]?.id : result.lastID
       await registrarLog(req.usuario.id, "CRIAR", "Agendamentos", `Agendamento criado para cliente "${nomeCliente}"`, nomeCliente, req)
 
       res.status(201).json({ id: agendamentoId, message: "Agendamento criado com sucesso" })
@@ -1341,20 +1410,21 @@ app.post(
   autorizar("admin", "head-admin"),
   [
     body("titulo").trim().notEmpty().withMessage("Título é obrigatório"),
-    body("regiao").trim().notEmpty().withMessage("Região é obrigatória")
+    body("regiao").trim().notEmpty().withMessage("Região é obrigatória"),
+    body("endereco").trim().notEmpty().withMessage("Endereço é obrigatório")
   ],
   validarRequisicao,
   async (req, res) => {
-    const { titulo, regiao, valor_estimado, prioridade, objetivo, observacoes } = req.body
+    const { titulo, regiao, endereco, valor_estimado, prioridade, objetivo, observacoes } = req.body
     const usuarioId = req.usuario.id
 
     try {
       const result = await dbQuery(
-        "INSERT INTO captacoes (titulo, regiao, valor_estimado, prioridade, objetivo, observacoes, usuario_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
-        [titulo, regiao, valor_estimado || null, prioridade || 'media', objetivo || null, observacoes || null, usuarioId]
+        "INSERT INTO captacoes (titulo, regiao, endereco, valor_estimado, prioridade, objetivo, observacoes, usuario_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+        [titulo, regiao, endereco, valor_estimado || null, prioridade || 'media', objetivo || null, observacoes || null, usuarioId]
       )
 
-      const captacaoId = result.rows[0]?.id
+      const captacaoId = result.rows ? result.rows[0]?.id : result.lastID
       await registrarLog(req.usuario.id, "CRIAR", "Captações", `Captação criada: ${titulo}`, titulo, req)
 
       res.status(201).json({ id: captacaoId, message: "Captação criada com sucesso" })
@@ -1373,7 +1443,7 @@ app.put(
   validarRequisicao,
   async (req, res) => {
     const { id } = req.params
-    const { titulo, regiao, valor_estimado, prioridade, objetivo, observacoes } = req.body
+    const { titulo, regiao, endereco, valor_estimado, prioridade, objetivo, observacoes } = req.body
 
     try {
       const captacao = await dbQuery("SELECT titulo FROM captacoes WHERE id = $1", [id])
@@ -1384,8 +1454,8 @@ app.put(
       const tituloAtual = captacao.rows[0].titulo
 
       await dbQuery(
-        "UPDATE captacoes SET titulo = COALESCE($1, titulo), regiao = COALESCE($2, regiao), valor_estimado = COALESCE($3, valor_estimado), prioridade = COALESCE($4, prioridade), objetivo = COALESCE($5, objetivo), observacoes = COALESCE($6, observacoes), atualizado_em = CURRENT_TIMESTAMP WHERE id = $7",
-        [titulo, regiao, valor_estimado, prioridade, objetivo, observacoes, id]
+        "UPDATE captacoes SET titulo = COALESCE($1, titulo), regiao = COALESCE($2, regiao), endereco = COALESCE($3, endereco), valor_estimado = COALESCE($4, valor_estimado), prioridade = COALESCE($5, prioridade), objetivo = COALESCE($6, objetivo), observacoes = COALESCE($7, observacoes), atualizado_em = CURRENT_TIMESTAMP WHERE id = $8",
+        [titulo, regiao, endereco, valor_estimado, prioridade, objetivo, observacoes, id]
       )
 
       const tituloFinal = titulo || tituloAtual
@@ -1473,11 +1543,11 @@ app.post(
 
     try {
       const result = await dbQuery(
-        "INSERT INTO bug_reports (titulo, descricao, prioridade, categoria, usuario_id) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "INSERT INTO bug_reports (titulo, descricao, prioridade, categoria, usuario_id) VALUES ($1, $2, $3, $4, $5)",
         [titulo, descricao, prioridade || "media", categoria || "geral", usuarioId]
       )
 
-      const bugReportId = result.rows[0]?.id
+      const bugReportId = result.rows ? result.rows[0]?.id : result.lastID
       await registrarLog(req.usuario.id, "CRIAR", "Bug Reports", `Bug report criado: ${titulo}`, titulo, req)
 
       res.status(201).json({
@@ -1592,14 +1662,14 @@ app.post(
       }
 
       const result = await dbQuery(
-        "INSERT INTO bug_report_messages (bug_report_id, usuario_id, mensagem) VALUES ($1, $2, $3) RETURNING id",
+        "INSERT INTO bug_report_messages (bug_report_id, usuario_id, mensagem) VALUES ($1, $2, $3)",
         [id, usuarioId, mensagem]
       )
 
       // Atualizar a data do bug report
       await dbQuery("UPDATE bug_reports SET atualizado_em = CURRENT_TIMESTAMP WHERE id = $1", [id])
 
-      const messageId = result.rows[0]?.id
+      const messageId = result.rows ? result.rows[0]?.id : result.lastID
       await registrarLog(req.usuario.id, "COMENTAR", "Bug Reports", `Comentário adicionado ao bug report: ${bugReport.rows[0].titulo}`, bugReport.rows[0].titulo, req)
 
       res.status(201).json({
@@ -1745,11 +1815,11 @@ io.on('connection', (socket) => {
   // Enviar mensagem em tempo real
   socket.on('send-message', async (data) => {
     try {
-      const { bugReportId, mensagem } = data
+      const { id, mensagem } = data
       const usuarioId = socket.usuario.id
 
       // Verificar se o bug report existe
-      const bugReport = await dbQuery("SELECT id, titulo FROM bug_reports WHERE id = $1", [bugReportId])
+      const bugReport = await dbQuery("SELECT id, titulo FROM bug_reports WHERE id = $1", [id])
       if (bugReport.rows.length === 0) {
         socket.emit('message-error', { error: "Bug report não encontrado" })
         return
@@ -1757,15 +1827,17 @@ io.on('connection', (socket) => {
 
       // Inserir a mensagem no banco
       const result = await dbQuery(
-        "INSERT INTO bug_report_messages (bug_report_id, usuario_id, mensagem) VALUES ($1, $2, $3) RETURNING id, criado_em",
-        [bugReportId, usuarioId, mensagem]
+        "INSERT INTO bug_report_messages (bug_report_id, usuario_id, mensagem) VALUES ($1, $2, $3)",
+        [id, usuarioId, mensagem]
       )
 
       // Atualizar a data do bug report
-      await dbQuery("UPDATE bug_reports SET atualizado_em = CURRENT_TIMESTAMP WHERE id = $1", [bugReportId])
+      await dbQuery("UPDATE bug_reports SET atualizado_em = CURRENT_TIMESTAMP WHERE id = $1", [id])
 
-      const messageId = result.rows[0]?.id
-      const criadoEm = result.rows[0]?.criado_em
+      const messageId = result.rows ? result.rows[0]?.id : result.lastID
+      // For criado_em, we need to get it separately since we removed RETURNING
+      const messageInfo = await dbQuery("SELECT criado_em FROM bug_report_messages WHERE id = $1", [messageId])
+      const criadoEm = messageInfo.rows ? messageInfo.rows[0]?.criado_em : null
 
       // Buscar dados do usuário para a resposta
       const userResult = await dbQuery("SELECT nome, username FROM usuarios WHERE id = $1", [usuarioId])
@@ -1781,12 +1853,12 @@ io.on('connection', (socket) => {
       }
 
       // Emitir para todos na sala do bug report
-      io.to(`bug-report-${bugReportId}`).emit('new-message', messageData)
+      io.to(`bug-report-${id}`).emit('new-message', messageData)
 
       // Emitir confirmação para o remetente
       socket.emit('message-sent')
 
-      console.log(`[${getDataSaoPaulo()}] [SOCKET] Mensagem enviada no bug report ${bugReportId} por ${socket.usuario.username}`)
+      console.log(`[${getDataSaoPaulo()}] [SOCKET] Mensagem enviada no bug report ${id} por ${socket.usuario.username}`)
 
     } catch (err) {
       console.error(`[${getDataSaoPaulo()}] [SOCKET] Erro ao enviar mensagem:`, err)

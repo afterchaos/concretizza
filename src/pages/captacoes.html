@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/styles/captacoes.css">
+    <link rel="stylesheet" href="/styles/captacoes.css?v=6">
 </head>
 <body class="app-page">
     <aside class="sidebar">
@@ -105,10 +105,21 @@
                     </select>
                 </div>
 
+                <!-- Added bulk delete button that appears when captacoes are selected -->
+                <div class="bulk-actions" id="bulkActions" style="display: none;">
+                    <span id="selectedCount">0 captação(ões) selecionada(s)</span>
+                    <button class="btn-danger" id="btnExcluirSelecionados">
+                        <i class="fas fa-trash"></i> Excluir Selecionados
+                    </button>
+                </div>
+
                 <div class="table-responsive">
                     <table class="table">
                         <thead>
                             <tr>
+                                <th style="width: 50px;" id="headerCheckbox">
+                                    <input type="checkbox" id="selectAll" class="checkbox-input">
+                                </th>
                         <th>Título</th>
                         <th>Região</th>
                         <th>Valor Estimado</th>
@@ -116,12 +127,12 @@
                         <th>Objetivo</th>
                         <th>Criado por</th>
                         <th>Data</th>
-                        <th>Ações</th>
+                        <th id="headerAcoes">Ações</th>
                             </tr>
                         </thead>
                         <tbody id="captacoesTable">
                             <tr>
-                                <td colspan="8" class="text-center">Nenhuma captação encontrada</td>
+                                <td colspan="9" class="text-center">Nenhuma captação encontrada</td>
                             </tr>
                         </tbody>
                     </table>
@@ -155,6 +166,10 @@
                     <div class="form-group">
                         <label for="captacaoRegiao">Região *</label>
                         <input type="text" id="captacaoRegiao" required placeholder="Região da captação">
+                    </div>
+                    <div class="form-group">
+                        <label for="captacaoEndereco">Endereço *</label>
+                        <input type="text" id="captacaoEndereco" required placeholder="Endereço da captação">
                     </div>
                     <div class="form-group">
                         <label for="captacaoValor">Valor Estimado (R$)</label>
@@ -233,10 +248,121 @@
         </div>
     </div>
 
+    <div id="modalDetalhesCaptacao" class="modal">
+        <div class="modal-content modal-details">
+            <div class="modal-header">
+                <h2>Detalhes da Captação</h2>
+                <button class="modal-close" id="closeModalDetalhes">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="user-profile-header">
+                    <div class="profile-avatar">
+                        <span id="detalheAvatar">C</span>
+                    </div>
+                    <div class="profile-info">
+                        <h3 id="detalheTituloHeader">-</h3>
+                        <span id="detalhePrioridadeHeader" class="badge">-</span>
+                    </div>
+                </div>
+
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <div class="detail-icon">
+                            <i class="fas fa-map-marker-alt"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Região</span>
+                            <span class="detail-value" id="detalheRegiao">-</span>
+                        </div>
+                    </div>
+
+                    <div class="detail-item">
+                        <div class="detail-icon">
+                            <i class="fas fa-home"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Endereço</span>
+                            <span class="detail-value" id="detalheEndereco">-</span>
+                        </div>
+                    </div>
+
+                    <div class="detail-item">
+                        <div class="detail-icon">
+                            <i class="fas fa-dollar-sign"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Valor Estimado</span>
+                            <span class="detail-value" id="detalheValor">-</span>
+                        </div>
+                    </div>
+
+                    <div class="detail-item">
+                        <div class="detail-icon">
+                            <i class="fas fa-calendar"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Data de Criação</span>
+                            <span class="detail-value" id="detalheDataCriacao">-</span>
+                        </div>
+                    </div>
+
+                    <div class="detail-item">
+                        <div class="detail-icon">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Criado por</span>
+                            <span class="detail-value" id="detalheCriadoPor">-</span>
+                        </div>
+                    </div>
+
+                    <div class="detail-item">
+                        <div class="detail-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Última Atualização</span>
+                            <span class="detail-value" id="detalheDataAtualizacao">-</span>
+                        </div>
+                    </div>
+
+                    <div class="detail-item detail-full">
+                        <div class="detail-icon">
+                            <i class="fas fa-bullseye"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Objetivo</span>
+                            <span class="detail-value" id="detalheObjetivo">-</span>
+                        </div>
+                    </div>
+
+                    <div class="detail-item detail-full">
+                        <div class="detail-icon">
+                            <i class="fas fa-file-alt"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Observações</span>
+                            <span class="detail-value" id="detalheObservacoes">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="details-actions">
+                    <button class="btn-primary" id="btnEditarDetalhes" onclick="editarCaptacao(window.captacaoDetalhesAtual?.id)">
+                        <i class="fas fa-edit"></i> Editar
+                    </button>
+                    <button class="btn-secondary" id="btnFecharDetalhes">
+                        Fechar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="toastNotification" class="toast"></div>
 
     <script src="/scripts/utils/api.js?v=2"></script>
     <script src="/scripts/utils/permissions.js?v=2"></script>
-    <script src="/scripts/captacoes.js?v=1"></script>
+    <script src="/scripts/captacoes.js?v=11"></script>
 </body>
 </html>
