@@ -256,7 +256,7 @@ function atualizarTabela() {
         <td>${cliente.telefone}</td>
         <td>${formatarInteresse(cliente.interesse)}</td>
         <td><span class="badge badge-${cliente.status}">${formatarStatus(cliente.status)}</span></td>
-        <td>${cliente.email || "-"}</td>
+        <td>${cliente.valor || "-"}</td>
         <td>${formatarData(cliente.data)}</td>
         ${isAdminOrHead ? `<td>${cliente.cadastrado_por || "-"}</td>` : ""}
         ${showAtribuido ? `<td>${cliente.atribuido_a_nome || "-"}</td>` : ""}

@@ -218,7 +218,6 @@ function atualizarClientesDisponiveis() {
         <td><input type="checkbox" class="cliente-checkbox" data-cliente-id="${cliente.id}" ${clientesSelecionadosDisponiveis.includes(cliente.id.toString()) ? 'checked' : ''}></td>
         <td>${cliente.nome}</td>
         <td>${cliente.telefone}</td>
-        <td>${cliente.email || "-"}</td>
         <td><span class="badge badge-${cliente.status}">${formatarStatus(cliente.status)}</span></td>
         <td>${cliente.valor || "-"}</td>
         <td>
