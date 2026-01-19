@@ -551,6 +551,27 @@
         </div>
     </div>
 
+    <!-- Modal de histórico de status -->
+    <div id="modalHistoricoStatus" class="modal">
+        <div class="modal-content modal-history">
+            <div class="modal-header">
+                <h2>Histórico de Status</h2>
+                <button class="modal-close" id="closeHistoricoStatusModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="historico-header">
+                    <h3 id="historicoStatusClienteNome">-</h3>
+                </div>
+                <div id="historicoStatusContainer" class="historico-container">
+                    <!-- Itens do histórico serão inseridos aqui -->
+                </div>
+                <div class="historico-actions">
+                    <button class="btn-secondary" id="btnFecharHistoricoStatus">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="toastNotification" class="toast"></div>
 
     <script src="/scripts/utils/api.js?v=2"></script>

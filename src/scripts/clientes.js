@@ -512,6 +512,20 @@ function configurarEventos() {
     })
   }
 
+  const closeHistoricoStatusModal = document.getElementById("closeHistoricoStatusModal")
+  if (closeHistoricoStatusModal) {
+    closeHistoricoStatusModal.addEventListener("click", () => {
+      document.getElementById("modalHistoricoStatus").style.display = "none"
+    })
+  }
+
+  const btnFecharHistoricoStatus = document.getElementById("btnFecharHistoricoStatus")
+  if (btnFecharHistoricoStatus) {
+    btnFecharHistoricoStatus.addEventListener("click", () => {
+      document.getElementById("modalHistoricoStatus").style.display = "none"
+    })
+  }
+
   const btnWhatsApp = document.getElementById("btnWhatsApp")
   if (btnWhatsApp) {
     btnWhatsApp.addEventListener("click", () => {
@@ -875,6 +889,14 @@ function abrirDetalhesCliente(id) {
     detailItem.onclick = () => abrirHistoricoAtribuicoes(cliente.id)
   }
 
+  // Make the status detail item clickable for status history
+  const detailStatusElement = document.getElementById("detailStatus")
+  const statusDetailItem = detailStatusElement?.closest('.detail-item')
+  if (statusDetailItem && isAdminOrHeadAdmin()) {
+    statusDetailItem.style.cursor = "pointer"
+    statusDetailItem.onclick = () => abrirHistoricoStatus(cliente.id)
+  }
+
   document.getElementById("modalDetalhesCliente").style.display = "flex"
 }
 
@@ -1223,6 +1245,134 @@ async function abrirHistoricoAtribuicoes(clienteId) {
   } catch (error) {
     console.error("Erro ao carregar histórico de atribuições:", error)
     mostrarNotificacao("Erro ao carregar histórico: " + error.message, "erro")
+  } finally {
+    mostrarCarregando(false)
+  }
+}
+
+async function abrirHistoricoStatus(clienteId) {
+  try {
+    mostrarCarregando(true)
+    const historico = await obterHistoricoStatus(clienteId)
+    console.log("Histórico de status recebido:", historico)
+
+    document.getElementById("historicoStatusClienteNome").textContent = historico.cliente_nome
+
+    const container = document.getElementById("historicoStatusContainer")
+
+    // Mostrar status atual fixo no topo
+    let html = `
+      <div class="historico-item status-atual">
+        <div class="historico-icon">
+          <i class="fas fa-info-circle"></i>
+        </div>
+        <div class="historico-content">
+          <div class="historico-title">Status Atual</div>
+          <div class="historico-description">
+            <span class="badge badge-${historico.status_atual}">${formatarStatus(historico.status_atual)}</span>
+          </div>
+        </div>
+      </div>
+    `
+
+    // Primeiro, adicionar entrada de criação do cliente se não houver histórico
+    if (!historico.historico_status || historico.historico_status.length === 0) {
+      html += `
+        <div class="historico-item data-cadastro">
+          <div class="historico-icon">
+            <i class="fas fa-calendar-plus"></i>
+          </div>
+          <div class="historico-content">
+            <div class="historico-title">Cliente Cadastrado</div>
+            <div class="historico-description">
+              Status inicial: <span class="badge badge-${historico.status_atual}">${formatarStatus(historico.status_atual)}</span>
+            </div>
+            <div class="historico-date">${formatarDataHora(historico.cliente_criado_em || new Date().toISOString())}</div>
+          </div>
+        </div>
+      `
+    }
+
+    // Adicionar todas as mudanças históricas de status
+    if (historico.historico_status && historico.historico_status.length > 0) {
+      // Adicionar entrada de criação primeiro
+      const primeiraMudanca = historico.historico_status[historico.historico_status.length - 1]
+      if (primeiraMudanca && primeiraMudanca.descricao && primeiraMudanca.descricao.includes('de "N/A" para')) {
+        // Extrair o status inicial da primeira mudança
+        const match = primeiraMudanca.descricao.match(/de "([^"]+)" para "([^"]+)"/)
+        if (match) {
+          const statusInicial = match[1] === 'N/A' ? 'novo' : match[1].toLowerCase().replace(/\s+/g, '-')
+          html += `
+            <div class="historico-item data-cadastro">
+              <div class="historico-icon">
+                <i class="fas fa-calendar-plus"></i>
+              </div>
+              <div class="historico-content">
+                <div class="historico-title">Cliente Cadastrado</div>
+                <div class="historico-description">
+                  Status inicial: <span class="badge badge-${statusInicial}">${formatarStatus(statusInicial)}</span>
+                </div>
+                <div class="historico-date">${formatarDataHora(historico.cliente_criado_em || primeiraMudanca.data)}</div>
+              </div>
+            </div>
+          `
+        }
+      }
+
+      // Adicionar todas as mudanças de status em ordem cronológica
+      historico.historico_status.slice().reverse().forEach(statusItem => {
+        const statusClass = statusItem.status ? `badge badge-${statusItem.status}` : 'badge'
+        const statusText = formatarStatus(statusItem.status)
+
+        html += `
+          <div class="historico-item status-change">
+            <div class="historico-icon">
+              <i class="fas fa-exchange-alt"></i>
+            </div>
+            <div class="historico-content">
+              <div class="historico-title">Status Alterado</div>
+              <div class="historico-description">
+                ${statusItem.descricao || `Status definido como <span class="${statusClass}">${statusText}</span>`}
+              </div>
+              <div class="historico-user">Por: ${statusItem.usuario || 'Sistema'}</div>
+              <div class="historico-date">${statusItem.data}</div>
+            </div>
+          </div>
+        `
+      })
+    }
+
+    // Se não há histórico mas temos status atual, mostrar como status atual
+    if (html === "" && historico.status_atual) {
+      const statusClass = `badge badge-${historico.status_atual}`
+      const statusText = formatarStatus(historico.status_atual)
+
+      html += `
+        <div class="historico-item data-cadastro">
+          <div class="historico-icon">
+            <i class="fas fa-info-circle"></i>
+          </div>
+          <div class="historico-content">
+            <div class="historico-title">Status Atual</div>
+            <div class="historico-description">
+              Status atual: <span class="${statusClass}">${statusText}</span>
+            </div>
+            <div class="historico-date">${formatarDataHora(new Date().toISOString())}</div>
+          </div>
+        </div>
+      `
+    }
+
+    if (!historico.status_atual && (!historico.historico_status || historico.historico_status.length === 0)) {
+      html = `<div class="historico-empty">Nenhuma mudança de status encontrada para este cliente.</div>`
+    }
+
+    container.innerHTML = html
+
+    document.getElementById("modalHistoricoStatus").style.display = "flex"
+  } catch (error) {
+    console.error("Erro ao carregar histórico de status:", error)
+    mostrarNotificacao("Erro ao carregar histórico de status: " + error.message, "erro")
   } finally {
     mostrarCarregando(false)
   }

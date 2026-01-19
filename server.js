@@ -721,12 +721,14 @@ app.put(
     const isAdmin = cargos.includes("admin") || cargos.includes("head-admin")
 
     try {
-      // Buscar o nome atual do cliente para o log
-      const clienteAtual = await dbQuery("SELECT nome FROM clientes WHERE id = $1", [id])
-      if (clienteAtual.rows.length === 0) {
+      // Buscar os dados atuais do cliente para detectar mudanças
+      const clienteAtualResult = await dbQuery("SELECT nome, status FROM clientes WHERE id = $1", [id])
+      if (clienteAtualResult.rows.length === 0) {
         return res.status(404).json({ error: "Cliente não encontrado" })
       }
-      const nomeCliente = clienteAtual.rows[0].nome
+      const clienteAtual = clienteAtualResult.rows[0]
+      const nomeCliente = clienteAtual.nome
+      const statusAtual = clienteAtual.status
 
       if (isCorretor && !isAdmin) {
         const cliente = await dbQuery("SELECT usuario_id, atribuido_a FROM clientes WHERE id = $1", [id])
@@ -740,7 +742,14 @@ app.put(
           [interesse || null, status || null, observacoes || null, id]
         )
         if (result.rowCount === 0) return res.status(404).json({ error: "Cliente não encontrado" })
-        await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Cliente atualizado (restrito): ${nomeCliente}`, nomeCliente, req)
+
+        // Log sempre que houver mudança de status (corretores)
+        if (status !== undefined && status !== statusAtual) {
+          await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Status do cliente "${nomeCliente}" alterado de "${statusAtual || 'N/A'}" para "${status || 'N/A'}"`, nomeCliente, req)
+        } else if (interesse !== undefined || observacoes !== undefined) {
+          await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Cliente atualizado (restrito): ${nomeCliente}`, nomeCliente, req)
+        }
+
         return res.json({ success: true, message: "Cliente atualizado com sucesso" })
       }
 
@@ -749,8 +758,16 @@ app.put(
         [nome, telefone, email, interesse, valor, status, observacoes, tags, id]
       )
       if (result.rowCount === 0) return res.status(404).json({ error: "Cliente não encontrado" })
+
       const nomeFinal = nome || nomeCliente
-      await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Cliente atualizado: ${nomeFinal}`, nomeFinal, req)
+
+      // Log sempre que houver mudança de status (admins e corretores)
+      if (status !== undefined && status !== statusAtual) {
+        await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Status do cliente "${nomeFinal}" alterado de "${statusAtual || 'N/A'}" para "${status || 'N/A'}"`, nomeFinal, req)
+      } else if (interesse !== undefined || observacoes !== undefined) {
+        await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Cliente atualizado: ${nomeFinal}`, nomeFinal, req)
+      }
+
       res.json({ success: true, message: "Cliente atualizado com sucesso" })
     } catch (err) {
       console.error("[CLIENTES PUT] Erro ao atualizar cliente:", err)
@@ -1410,6 +1427,100 @@ app.get("/api/clientes/:id/historico-atribuicoes", autenticar, autorizar("admin"
   } catch (err) {
     console.error(`[${getDataSaoPaulo()}] [HISTORICO ATRIBUICOES] Erro ao buscar histórico:`, err)
     res.status(500).json({ error: "Erro ao buscar histórico de atribuições: " + err.message })
+  }
+})
+
+// ===== ROTA PARA HISTÓRICO DE STATUS =====
+app.get("/api/clientes/:id/historico-status", autenticar, autorizar("admin", "head-admin"), async (req, res) => {
+  try {
+    const { id } = req.params
+
+    // Verificar se o cliente existe
+    const cliente = await dbQuery("SELECT nome, status, criado_em FROM clientes WHERE id = $1", [id])
+    if (cliente.rows.length === 0) {
+      return res.status(404).json({ error: "Cliente não encontrado" })
+    }
+
+    // Buscar histórico de mudanças de status nos logs
+    const logs = await dbQuery(`
+      SELECT l.*, u.nome as usuario_logado_nome
+      FROM logs_auditoria l
+      LEFT JOIN usuarios u ON l.usuario_id = u.id
+      WHERE l.modulo = 'Clientes'
+        AND l.acao = 'EDITAR'
+        AND l.usuario_afetado = $1
+        AND l.descricao LIKE '%Status do cliente%'
+      ORDER BY l.criado_em ASC
+    `, [cliente.rows[0].nome])
+
+    // Função para formatar data no timezone de São Paulo
+    const formatarDataSaoPaulo = (dataString) => {
+      if (!dataString) return "-"
+      const data = new Date(dataString)
+      return data.toLocaleString('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      })
+    }
+
+    // Extrair mudanças de status das descrições dos logs
+    const historicoStatus = []
+
+    // Adicionar status atual se não houver histórico
+    if (logs.rows.length === 0) {
+      historicoStatus.push({
+        status: cliente.rows[0].status,
+        data: formatarDataSaoPaulo(cliente.rows[0].criado_em),
+        usuario: "Sistema",
+        descricao: "Status inicial do cliente"
+      })
+    } else {
+      // Processar logs para extrair mudanças de status
+      logs.rows.forEach(log => {
+        const descricao = log.descricao || ""
+
+        // Usar regex para extrair informações do log específico
+        const statusMatch = descricao.match(/Status do cliente "([^"]+)" alterado de "([^"]+)" para "([^"]+)"/)
+        if (statusMatch) {
+          const [, clienteNome, statusAntigo, statusNovo] = statusMatch
+
+          historicoStatus.push({
+            status: statusNovo,
+            data: formatarDataSaoPaulo(log.criado_em),
+            usuario: log.usuario_logado_nome || "Sistema",
+            descricao: `Alterado de "${statusAntigo}" para "${statusNovo}"`
+          })
+        }
+      })
+
+      // Se não conseguiu extrair nenhum status dos logs, adicionar o status atual
+      if (historicoStatus.length === 0) {
+        historicoStatus.push({
+          status: cliente.rows[0].status,
+          data: formatarDataSaoPaulo(cliente.rows[0].criado_em),
+          usuario: "Sistema",
+          descricao: "Status atual do cliente"
+        })
+      }
+    }
+
+    const historico = {
+      cliente_nome: cliente.rows[0].nome,
+      status_atual: cliente.rows[0].status,
+      cliente_criado_em: cliente.rows[0].criado_em,
+      historico_status: historicoStatus
+    }
+
+    res.json(historico)
+  } catch (err) {
+    console.error(`[${getDataSaoPaulo()}] [HISTORICO STATUS] Erro ao buscar histórico:`, err)
+    res.status(500).json({ error: "Erro ao buscar histórico de status: " + err.message })
   }
 })
 

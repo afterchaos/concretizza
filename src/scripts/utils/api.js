@@ -193,6 +193,10 @@ async function obterHistoricoAtribuicoes(clienteId) {
   return fazerRequisicao(`/api/clientes/${clienteId}/historico-atribuicoes`, { method: "GET" })
 }
 
+async function obterHistoricoStatus(clienteId) {
+  return fazerRequisicao(`/api/clientes/${clienteId}/historico-status`, { method: "GET" })
+}
+
 function fazerLogout() {
   localStorage.removeItem("token")
   localStorage.removeItem("usuarioLogado")
