@@ -540,7 +540,15 @@ function filtrarClientes() {
     return matchSearch && matchStatus && matchInteresse && matchAtribuicao
   })
 
-  currentPage = 1
+  // Check if current page is still valid after filtering
+  const totalPaginas = Math.ceil(clientesFiltrados.length / itensPorPagina)
+  if (currentPage > totalPaginas && totalPaginas > 0) {
+    currentPage = totalPaginas
+  } else if (clientesFiltrados.length === 0) {
+    currentPage = 1
+  }
+  // If currentPage is already 1 or has items, keep it
+
   // Preserve selections that are still in the filtered list
   clientesSelecionados = clientesSelecionados.filter(id => clientesFiltrados.some(c => c.id === id))
   const selectAll = document.getElementById("selectAll")
