@@ -52,6 +52,8 @@ let currentPageDisponiveis = 1
 let itensPorPagina = 10
 let clientesSelecionadosDisponiveis = []
 let filtrosAtivosDisponiveis = false
+let sortClientesCorretor = 'data_atribuicao'
+let clientesCorretorAtual = []
 
 async function carregarCorretoresEClientes() {
   mostrarCarregando(true)
@@ -201,7 +203,15 @@ function atualizarClientesDisponiveis() {
   tbody.removeAttribute("data-loading")
 
   // Use filtered list if filters are active, otherwise use all available clients
-  const clientesParaExibir = filtrosAtivosDisponiveis ? clientesDisponiveisFiltrados : clientes.filter(c => !c.atribuido_a && c.status !== 'finalizado')
+  let clientesParaExibir = filtrosAtivosDisponiveis ? clientesDisponiveisFiltrados.slice() : clientes.filter(c => !c.atribuido_a && c.status !== 'finalizado').slice()
+
+  // Add selected clients that are available and not already in the list
+  clientesSelecionadosDisponiveis.forEach(id => {
+    const client = clientes.find(c => c.id.toString() === id && !c.atribuido_a && c.status !== 'finalizado')
+    if (client && !clientesParaExibir.some(c => c.id === client.id)) {
+      clientesParaExibir.push(client)
+    }
+  })
 
   const countEl = document.getElementById("countClientesDisponiveis")
   if (countEl) {
@@ -314,25 +324,18 @@ async function abrirClientesCorretor(corretorId, corretorNome) {
     modal.style.display = "" // Remove inline display style that may prevent modal from opening
     modal.classList.add("show")
 
-    const clientesCorretor = await fazerRequisicao(`/api/corretores/${corretorId}/clientes?t=${Date.now()}`, { method: "GET" })
+    clientesCorretorAtual = await fazerRequisicao(`/api/corretores/${corretorId}/clientes?t=${Date.now()}`, { method: "GET" })
 
-    if (clientesCorretor.length === 0) {
+    // Set sort select value
+    const sortSelect = document.getElementById("sortClientesCorretor")
+    if (sortSelect) {
+      sortSelect.value = sortClientesCorretor
+    }
+
+    if (clientesCorretorAtual.length === 0) {
       tbody.innerHTML = `<tr><td colspan="6" class="text-center">Este corretor não possui clientes atribuídos</td></tr>`
     } else {
-      tbody.innerHTML = clientesCorretor.map(cliente => `
-        <tr>
-          <td><input type="checkbox" class="cliente-corretor-checkbox" data-cliente-id="${cliente.id}"></td>
-          <td>${cliente.nome}</td>
-          <td>${cliente.telefone}</td>
-          <td><span class="badge badge-${cliente.status}">${formatarStatus(cliente.status)}</span></td>
-          <td>${cliente.interesse ? formatarInteresse(cliente.interesse) : "-"}</td>
-          <td>
-            <button class="btn-action btn-delete" onclick="removerClienteCorretor(${corretorId}, ${cliente.id}, '${cliente.nome}')">
-              <i class="fas fa-unlink"></i> Remover
-            </button>
-          </td>
-        </tr>
-      `).join("")
+      renderizarClientesCorretor()
     }
 
     // Initialize floating header after table is loaded
@@ -415,7 +418,14 @@ function configurarEventos() {
   })
   
   document.getElementById("nextPageDisponiveis").addEventListener("click", () => {
-    const totalClientes = filtrosAtivosDisponiveis ? clientesDisponiveisFiltrados.length : clientes.filter(c => !c.atribuido_a && c.status !== 'finalizado').length
+    let clientesParaExibir = filtrosAtivosDisponiveis ? clientesDisponiveisFiltrados.slice() : clientes.filter(c => !c.atribuido_a && c.status !== 'finalizado').slice()
+    clientesSelecionadosDisponiveis.forEach(id => {
+      const client = clientes.find(c => c.id.toString() === id && !c.atribuido_a && c.status !== 'finalizado')
+      if (client && !clientesParaExibir.some(c => c.id === client.id)) {
+        clientesParaExibir.push(client)
+      }
+    })
+    const totalClientes = clientesParaExibir.length
     const totalPaginas = Math.ceil(totalClientes / itensPorPagina)
     if (currentPageDisponiveis < totalPaginas) {
       currentPageDisponiveis++
@@ -449,6 +459,10 @@ function configurarEventos() {
   })
   
   document.getElementById("searchClientesCorretor").addEventListener("input", filtrarClientesCorretor)
+  document.getElementById("sortClientesCorretor").addEventListener("change", (e) => {
+    sortClientesCorretor = e.target.value
+    renderizarClientesCorretor()
+  })
 
   const itemsPerPage = document.getElementById("itemsPerPageDisponiveis")
   if (itemsPerPage) {
@@ -524,29 +538,51 @@ function filtrarClientesDisponiveis() {
 
   filtrosAtivosDisponiveis = search.length > 0 || filterStatus.length > 0 || filterInteresse.length > 0
 
-  const countEl = document.getElementById("countClientesDisponiveis")
-  if (countEl) {
-    countEl.textContent = clientesDisponiveisFiltrados.length
-  }
-
   currentPageDisponiveis = 1
-  // Preserve selections that are still in the filtered list
-  clientesSelecionadosDisponiveis = clientesSelecionadosDisponiveis.filter(id => clientesDisponiveisFiltrados.some(c => c.id.toString() === id))
   atualizarClientesDisponiveis()
 }
 
 function filtrarClientesCorretor() {
   const search = document.getElementById("searchClientesCorretor").value.toLowerCase()
   const tbody = document.getElementById("clientesCorretorTable")
-  
   const rows = tbody.querySelectorAll("tr")
+
+  let visibleCount = 0
+
   rows.forEach(row => {
-    if (row.textContent.toLowerCase().includes(search)) {
-      row.style.display = ""
-    } else {
+    // Skip the "no clients found" row if it exists
+    if (row.cells.length === 1 && row.cells[0].colSpan === 6) {
       row.style.display = "none"
+      return
     }
+
+    const nome = row.cells[1]?.textContent.toLowerCase() || ""
+    const telefone = row.cells[2]?.textContent || ""
+    const status = row.cells[3]?.textContent.toLowerCase() || ""
+    const interesse = row.cells[4]?.textContent.toLowerCase() || ""
+
+    const matches = nome.includes(search) ||
+                   telefone.includes(search) ||
+                   status.includes(search) ||
+                   interesse.includes(search)
+
+    row.style.display = matches ? "" : "none"
+    if (matches) visibleCount++
   })
+
+  // Show "no clients found" message if no rows are visible
+  let noResultsRow = tbody.querySelector(".no-results-row")
+  if (visibleCount === 0) {
+    if (!noResultsRow) {
+      noResultsRow = document.createElement("tr")
+      noResultsRow.className = "no-results-row"
+      noResultsRow.innerHTML = `<td colspan="6" class="text-center">Nenhum cliente encontrado</td>`
+      tbody.appendChild(noResultsRow)
+    }
+    noResultsRow.style.display = ""
+  } else if (noResultsRow) {
+    noResultsRow.style.display = "none"
+  }
 }
 
 async function atribuirCliente(e) {
@@ -802,13 +838,56 @@ function formatarData(data) {
   return d.toLocaleDateString("pt-BR", { timeZone: 'America/Sao_Paulo' })
 }
 
+function ordenarClientes(clientes, criterio) {
+  return clientes.sort((a, b) => {
+    switch (criterio) {
+      case 'data_atribuicao':
+        const dataA = new Date(a.data_atribuicao || '1970-01-01')
+        const dataB = new Date(b.data_atribuicao || '1970-01-01')
+        return dataB - dataA // Mais recente primeiro
+      case 'nome':
+        return a.nome.localeCompare(b.nome)
+      case 'atualizado_em':
+        const atualA = new Date(a.atualizado_em || a.data_atribuicao || '1970-01-01')
+        const atualB = new Date(b.atualizado_em || b.data_atribuicao || '1970-01-01')
+        return atualB - atualA // Mais recente primeiro
+      default:
+        return 0
+    }
+  })
+}
+
+function renderizarClientesCorretor() {
+  const tbody = document.getElementById("clientesCorretorTable")
+  if (!tbody || clientesCorretorAtual.length === 0) return
+
+  // Sort clients
+  const clientesOrdenados = ordenarClientes(clientesCorretorAtual, sortClientesCorretor)
+
+  tbody.innerHTML = clientesOrdenados.map(cliente => `
+    <tr>
+      <td><input type="checkbox" class="cliente-corretor-checkbox" data-cliente-id="${cliente.id}"></td>
+      <td>${cliente.nome}</td>
+      <td>${cliente.telefone}</td>
+      <td><span class="badge badge-${cliente.status}">${formatarStatus(cliente.status)}</span></td>
+      <td>${cliente.interesse ? formatarInteresse(cliente.interesse) : "-"}</td>
+      <td>
+        <button class="btn-action btn-delete" onclick="removerClienteCorretor(${corretorAtualSelecionado.id}, ${cliente.id}, '${cliente.nome}')">
+          <i class="fas fa-unlink"></i> Remover
+        </button>
+      </td>
+    </tr>
+  `).join("")
+}
+
 function configurarEventosBulk() {
   // Select all checkbox for available clients
   const selectAllDisponiveis = document.getElementById("selectAllClientesDisponiveis")
   if (selectAllDisponiveis) {
     selectAllDisponiveis.addEventListener("change", function() {
-      const checkboxes = document.querySelectorAll(".cliente-checkbox")
-      checkboxes.forEach(cb => {
+      // Marcar apenas os checkboxes VISÍVEIS (não ocultos por filtros)
+      const visibleCheckboxes = document.querySelectorAll('.cliente-checkbox:not([style*="display: none"]):not([style*="display:none"])')
+      visibleCheckboxes.forEach(cb => {
         cb.checked = this.checked
         const clienteId = cb.dataset.clienteId
         if (this.checked) {
@@ -827,8 +906,9 @@ function configurarEventosBulk() {
   const selectAllCorretor = document.getElementById("selectAllClientesCorretor")
   if (selectAllCorretor) {
     selectAllCorretor.addEventListener("change", function() {
-      const checkboxes = document.querySelectorAll(".cliente-corretor-checkbox")
-      checkboxes.forEach(cb => cb.checked = this.checked)
+      // Marcar apenas os checkboxes VISÍVEIS (não ocultos por filtros)
+      const visibleCheckboxes = document.querySelectorAll('.cliente-corretor-checkbox:not([style*="display: none"]):not([style*="display:none"])')
+      visibleCheckboxes.forEach(cb => cb.checked = this.checked)
       atualizarBotoesBulk()
     })
   }

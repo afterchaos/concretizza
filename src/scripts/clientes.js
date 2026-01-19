@@ -438,8 +438,9 @@ function configurarEventos() {
   const selectAll = document.getElementById("selectAll")
   if (selectAll) {
     selectAll.addEventListener("change", (e) => {
-      const checkboxes = document.querySelectorAll(".cliente-checkbox")
-      checkboxes.forEach((checkbox) => {
+      // Marcar apenas os checkboxes VISÍVEIS (não ocultos por filtros)
+      const visibleCheckboxes = document.querySelectorAll('.cliente-checkbox:not([style*="display: none"]):not([style*="display:none"])')
+      visibleCheckboxes.forEach((checkbox) => {
         checkbox.checked = e.target.checked
       })
       atualizarCheckboxes()
@@ -527,7 +528,39 @@ function filtrarClientes() {
   const filterStatus = document.getElementById("filterStatus").value
   const filterInteresse = document.getElementById("filterInteresse").value
   const filterAtribuicao = document.getElementById("filterAtribuicao").value
+  const tbody = document.getElementById("clientesTable")
+  const rows = tbody.querySelectorAll("tr")
 
+  let visibleCount = 0
+
+  rows.forEach(row => {
+    // Skip the "no clients found" row if it exists
+    if (row.cells.length === 1 && row.cells[0].colSpan >= 8) {
+      row.style.display = "none"
+      return
+    }
+
+    const clienteId = parseInt(row.querySelector(".cliente-checkbox")?.getAttribute("data-id") || "0")
+    const cliente = clientes.find(c => c.id === clienteId)
+    if (!cliente) {
+      row.style.display = "none"
+      return
+    }
+
+    const matchSearch =
+      cliente.nome.toLowerCase().includes(search) ||
+      cliente.telefone.includes(search) ||
+      (cliente.email && cliente.email.toLowerCase().includes(search))
+    const matchStatus = !filterStatus || cliente.status === filterStatus
+    const matchInteresse = !filterInteresse || cliente.interesse === filterInteresse
+    const matchAtribuicao = !filterAtribuicao || cliente.atribuido_a_nome === filterAtribuicao || cliente.cadastrado_por === filterAtribuicao
+
+    const matches = matchSearch && matchStatus && matchInteresse && matchAtribuicao
+    row.style.display = matches ? "" : "none"
+    if (matches) visibleCount++
+  })
+
+  // Update filtered list for pagination
   clientesFiltrados = clientes.filter((cliente) => {
     const matchSearch =
       cliente.nome.toLowerCase().includes(search) ||
@@ -540,6 +573,36 @@ function filtrarClientes() {
     return matchSearch && matchStatus && matchInteresse && matchAtribuicao
   })
 
+  // Show "no clients found" message if no rows are visible
+  let noResultsRow = tbody.querySelector(".no-results-row")
+  if (visibleCount === 0) {
+    if (!noResultsRow) {
+      const usuarioLogado = obterUsuarioLogado()
+      const isAdminOrHead = isAdminOrHeadAdmin()
+      const cargos = getCargosAsArray(usuarioLogado?.cargo).map(c => c.toLowerCase()) || []
+      const isCorretor = cargos.includes('corretor') && !cargos.includes('admin') && !cargos.includes('head-admin')
+      const showAtribuido = isAdminOrHead || filterAtribuicao !== ""
+      let colspan = 8
+      if (isCorretor) {
+        colspan -= 1
+      }
+      if (showAtribuido) {
+        colspan += 1
+      }
+      if (isAdminOrHead) {
+        colspan += 1
+      }
+
+      noResultsRow = document.createElement("tr")
+      noResultsRow.className = "no-results-row"
+      noResultsRow.innerHTML = `<td colspan="${colspan}" class="text-center">Nenhum cliente encontrado</td>`
+      tbody.appendChild(noResultsRow)
+    }
+    noResultsRow.style.display = ""
+  } else if (noResultsRow) {
+    noResultsRow.style.display = "none"
+  }
+
   // Check if current page is still valid after filtering
   const totalPaginas = Math.ceil(clientesFiltrados.length / itensPorPagina)
   if (currentPage > totalPaginas && totalPaginas > 0) {
@@ -547,15 +610,9 @@ function filtrarClientes() {
   } else if (clientesFiltrados.length === 0) {
     currentPage = 1
   }
-  // If currentPage is already 1 or has items, keep it
 
-  // Preserve selections that are still in the filtered list
-  clientesSelecionados = clientesSelecionados.filter(id => clientesFiltrados.some(c => c.id === id))
-  const selectAll = document.getElementById("selectAll")
-  if (selectAll) {
-    selectAll.checked = false
-  }
-  atualizarTabela()
+  atualizarPaginacao()
+  atualizarCheckboxes()
 }
 
 async function salvarCliente() {
