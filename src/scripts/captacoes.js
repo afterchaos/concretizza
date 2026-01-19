@@ -437,7 +437,21 @@ async function confirmarExclusao() {
 
 function formatarData(data) {
   if (!data) return "-"
-  const d = new Date(data + 'T12:00:00')
+  // Handle different date formats from database
+  let dateString = data
+  if (typeof data === 'string') {
+    // Replace space with 'T' for ISO format if needed
+    dateString = data.replace(' ', 'T')
+    // Ensure it has time component
+    if (!dateString.includes('T')) {
+      dateString += 'T12:00:00'
+    }
+  }
+  const d = new Date(dateString)
+  if (isNaN(d.getTime())) {
+    console.warn('Invalid date:', data)
+    return "Data inválida"
+  }
   return d.toLocaleDateString("pt-BR", { timeZone: 'America/Sao_Paulo' })
 }
 
