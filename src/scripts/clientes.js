@@ -824,12 +824,12 @@ function abrirDetalhesCliente(id) {
 
   // Mudar o label para "Data de Atribuição" para todos
   detailDataLabel.textContent = "Data de Atribuição"
-  // Mostrar data de atribuição se disponível, senão vazia
+
   document.getElementById("detailData").textContent = formatarData(cliente.data_atribuicao)
   document.getElementById("detailStatus").textContent = formatarStatus(cliente.status)
   document.getElementById("detailObservacoes").textContent = cliente.observacoes || "-"
   
-  // Renderizar Tags
+  
   const detailTagsContainer = document.getElementById("detailTagsContainer")
   const detailTags = document.getElementById("detailTags")
   if (detailTagsContainer && detailTags) {
