@@ -1615,7 +1615,8 @@ app.get(
       if (db.isPostgres) {
         // PostgreSQL query with STRING_AGG
         query = `
-          SELECT cl.*, uc.nome as criado_por_nome,
+          SELECT cl.id, cl.titulo, cl.url, cl.descricao, cl.criado_por, cl.criado_em, cl.atualizado_em,
+                 uc.nome as criado_por_nome,
                  STRING_AGG(u.nome, ', ') as corretores_nomes
           FROM corretor_links cl
           LEFT JOIN link_assignments la ON cl.id = la.link_id
@@ -1628,11 +1629,11 @@ app.get(
           params = [usuarioId]
         }
 
-        query += " GROUP BY cl.id ORDER BY cl.criado_em DESC"
+        query += " GROUP BY cl.id, cl.titulo, cl.url, cl.descricao, cl.criado_por, cl.criado_em, cl.atualizado_em, uc.nome ORDER BY cl.criado_em DESC"
       } else {
         // SQLite query with GROUP_CONCAT
         query = `
-          SELECT cl.*,
+          SELECT cl.id, cl.titulo, cl.url, cl.descricao, cl.criado_por, cl.criado_em, cl.atualizado_em,
                  uc.nome as criado_por_nome,
                  GROUP_CONCAT(u.nome, ', ') as corretores_nomes
           FROM corretor_links cl
@@ -1646,7 +1647,7 @@ app.get(
           params = [usuarioId]
         }
 
-        query += " GROUP BY cl.id ORDER BY cl.criado_em DESC"
+        query += " GROUP BY cl.id, cl.titulo, cl.url, cl.descricao, cl.criado_por, cl.criado_em, cl.atualizado_em, uc.nome ORDER BY cl.criado_em DESC"
       }
 
       const result = await dbQuery(query, params)
