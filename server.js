@@ -1560,7 +1560,7 @@ app.get(
 
       const result = await dbQuery(`
         SELECT cl.*, uc.nome as criado_por_nome,
-               GROUP_CONCAT(u.nome, ', ') as corretores_nomes
+               STRING_AGG(u.nome, ', ') as corretores_nomes
         FROM corretor_links cl
         LEFT JOIN link_assignments la ON cl.id = la.link_id
         LEFT JOIN usuarios u ON la.corretor_id = u.id
@@ -1589,7 +1589,7 @@ app.get(
 
       let query = `
         SELECT cl.*, uc.nome as criado_por_nome,
-               GROUP_CONCAT(u.nome, ', ') as corretores_nomes
+               STRING_AGG(u.nome, ', ') as corretores_nomes
         FROM corretor_links cl
         LEFT JOIN link_assignments la ON cl.id = la.link_id
         LEFT JOIN usuarios u ON la.corretor_id = u.id
