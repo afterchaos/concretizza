@@ -40,7 +40,7 @@ function initSQLite() {
             } else {
               result = stmt.run()
             }
-            resolve({ rows: result, rowCount: result.changes })
+            resolve({ lastID: result.lastInsertRowid, changes: result.changes, rowCount: result.changes })
           } else {
             const stmt = sqlite.prepare(convertedSQL)
             let result

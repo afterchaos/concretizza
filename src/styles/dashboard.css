@@ -657,6 +657,10 @@ body.login-page {
   padding: var(--spacing-lg);
 }
 
+.modal.show {
+  display: flex;
+}
+
 .modal-content {
   background: linear-gradient(135deg, var(--color-surface) 0%, var(--color-surface-elevated) 100%);
   border: 1px solid var(--color-border-gold);

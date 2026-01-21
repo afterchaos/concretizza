@@ -802,6 +802,7 @@
   align-items: center;
   gap: var(--spacing-md);
   margin: 0;
+  white-space: nowrap;
 }
 
 .header-count {

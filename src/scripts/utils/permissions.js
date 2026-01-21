@@ -1,42 +1,37 @@
-console.log("[PERMISSION.JS] Arquivo carregado!")
-
 const PERMISSIONS = {
   'head-admin': {
     clientes: ['create', 'read', 'update', 'delete'],
     usuarios: ['create', 'read', 'update', 'delete', 'manage-admins'],
     logs: ['read'],
+    links: ['create', 'read', 'update', 'delete'],
   },
   admin: {
     clientes: ['create', 'read', 'update', 'delete'],
     usuarios: ['create', 'read', 'update', 'delete'],
     logs: ['read'],
+    links: ['create', 'read', 'update', 'delete'],
   },
   corretor: {
     clientes: ['create', 'read', 'update', 'delete'],
     usuarios: ['read'],
+    links: ['read'],
   },
   visualizar: {
     clientes: ['read'],
     usuarios: [],
+    links: ['read'],
   },
 }
 
 function obterUsuarioLogado() {
-  console.log("[PERMISSION] === INICIANDO obterUsuarioLogado ===")
   const usuarioStr = localStorage.getItem('usuarioLogado')
-  console.log("[PERMISSION] localStorage.usuarioLogado string:", usuarioStr)
-  
+
   if (!usuarioStr) {
-    console.log("[PERMISSION] AVISO: usuarioLogado não existe no localStorage")
     return null
   }
-  
+
   try {
     const usuario = JSON.parse(usuarioStr)
-    console.log("[PERMISSION] Usuário parseado:", usuario)
-    console.log("[PERMISSION] usuario.cargo:", usuario?.cargo)
-    console.log("[PERMISSION] usuario.cargo type:", typeof usuario?.cargo)
-    // console.log("[PERMISSION] usuario.cargo.toLowerCase():", usuario?.cargo?.toLowerCase())
     return usuario
   } catch (e) {
     console.error("[PERMISSION] ERRO ao parsear usuarioLogado:", e)
@@ -101,13 +96,9 @@ function isHeadAdmin() {
 
 function isAdminOrHeadAdmin() {
   const usuario = obterUsuarioLogado()
-  console.log("[PERMISSION] obterUsuarioLogado():", usuario)
   if (!usuario || !usuario.cargo) return false
   const cargos = getCargosAsArray(usuario.cargo).map(c => c.toLowerCase());
-  console.log("[PERMISSION] cargos:", cargos)
-  const result = cargos.includes('admin') || cargos.includes('head-admin')
-  console.log("[PERMISSION] isAdminOrHeadAdmin result:", result)
-  return result
+  return cargos.includes('admin') || cargos.includes('head-admin')
 }
 
 function bloqueado(mensagem = 'Você não tem permissão para realizar esta ação') {

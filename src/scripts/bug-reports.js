@@ -218,21 +218,22 @@ function configurarEventos() {
   if (logoutBtn) {
     logoutBtn.addEventListener("click", (e) => {
       e.preventDefault()
-      document.getElementById("modalConfirmacaoLogout").style.display = "flex"
+      e.stopPropagation()
+      document.getElementById("modalConfirmacaoLogout").classList.add("show")
     })
   }
 
   const closeConfirmacaoLogout = document.getElementById("closeConfirmacaoLogout")
   if (closeConfirmacaoLogout) {
     closeConfirmacaoLogout.addEventListener("click", () => {
-      document.getElementById("modalConfirmacaoLogout").style.display = "none"
+      document.getElementById("modalConfirmacaoLogout").classList.remove("show")
     })
   }
 
   const btnCancelarLogout = document.getElementById("btnCancelarLogout")
   if (btnCancelarLogout) {
     btnCancelarLogout.addEventListener("click", () => {
-      document.getElementById("modalConfirmacaoLogout").style.display = "none"
+      document.getElementById("modalConfirmacaoLogout").classList.remove("show")
     })
   }
 

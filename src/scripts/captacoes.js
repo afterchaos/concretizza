@@ -42,6 +42,9 @@ function carregarDadosUsuario() {
 
     // Apply permissions for captacoes
     aplicarPermissoesCaptacoes()
+
+    // Apply permissions for Links tab
+    aplicarPermissoesLinks()
   }
 }
 
@@ -61,9 +64,16 @@ let captacaoEmEdicao = null
 let captacaoParaExcluir = null
 let captacoesSelecionadas = []
 
+let links = []
+let linkEmEdicao = null
+let corretores = []
+
 async function inicializarPagina() {
   configurarEventos()
+  configurarTabs()
   await carregarCaptacoes()
+  await carregarCorretores()
+  await carregarLinks()
 }
 
 async function carregarCaptacoes() {
@@ -191,21 +201,22 @@ function configurarEventos() {
   if (logoutBtn) {
     logoutBtn.addEventListener("click", (e) => {
       e.preventDefault()
-      document.getElementById("modalConfirmacaoLogout").style.display = "flex"
+      e.stopPropagation()
+      document.getElementById("modalConfirmacaoLogout").classList.add("show")
     })
   }
 
   const closeConfirmacaoLogout = document.getElementById("closeConfirmacaoLogout")
   if (closeConfirmacaoLogout) {
     closeConfirmacaoLogout.addEventListener("click", () => {
-      document.getElementById("modalConfirmacaoLogout").style.display = "none"
+      document.getElementById("modalConfirmacaoLogout").classList.remove("show")
     })
   }
 
   const btnCancelarLogout = document.getElementById("btnCancelarLogout")
   if (btnCancelarLogout) {
     btnCancelarLogout.addEventListener("click", () => {
-      document.getElementById("modalConfirmacaoLogout").style.display = "none"
+      document.getElementById("modalConfirmacaoLogout").classList.remove("show")
     })
   }
 
@@ -636,5 +647,331 @@ function aplicarPermissoesCaptacoes() {
   const btnNova = document.getElementById("btnNovaCaptacao")
   if (btnNova) {
     btnNova.style.display = isCorretor ? "none" : "inline-block"
+  }
+}
+
+function aplicarPermissoesLinks() {
+  const usuarioLogado = obterUsuarioLogado()
+  if (!usuarioLogado) return
+
+  const cargos = getCargosAsArray(usuarioLogado?.cargo).map(c => c.toLowerCase()) || []
+  const hasMultipleRoles = cargos.length > 1
+  const canViewLinks = cargos.includes('corretor') || cargos.includes('admin') || cargos.includes('head-admin') || hasMultipleRoles
+  const canEditLinks = cargos.includes('admin') || cargos.includes('head-admin')
+
+  // Show/hide Links tab
+  const tabLinks = document.getElementById("tabLinks")
+  if (tabLinks) {
+    tabLinks.style.display = canViewLinks ? "" : "none"
+  }
+
+  // Show/hide "Novo Link" button
+  const btnNovoLink = document.getElementById("btnNovoLink")
+  if (btnNovoLink) {
+    btnNovoLink.style.display = canEditLinks ? "inline-block" : "none"
+  }
+}
+
+function configurarTabs() {
+  const tabButtons = document.querySelectorAll('.tab-button')
+  const tabContents = document.querySelectorAll('.tab-content')
+
+  tabButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      const tabName = button.getAttribute('data-tab')
+
+      // Remove active class from all buttons
+      tabButtons.forEach(btn => btn.classList.remove('active'))
+
+      // Add active class to clicked button
+      button.classList.add('active')
+
+      // Hide all tab contents
+      tabContents.forEach(content => {
+        content.classList.remove('active')
+        content.style.display = 'none'
+      })
+
+      // Show selected tab content
+      const selectedTab = document.getElementById('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1))
+      if (selectedTab) {
+        selectedTab.classList.add('active')
+        selectedTab.style.display = 'block'
+      }
+    })
+  })
+}
+
+// ===== LINKS FUNCTIONS =====
+async function carregarCorretores() {
+  try {
+    const response = await fetch('/api/corretores', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    })
+    if (response.ok) {
+      corretores = await response.json()
+      popularSelectCorretores()
+    } else {
+      console.error("Erro ao carregar corretores:", response.status)
+    }
+  } catch (error) {
+    console.error("Erro ao carregar corretores:", error)
+  }
+}
+
+async function carregarLinks() {
+  try {
+    const response = await fetch('/api/corretores/links', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    })
+    if (response.ok) {
+      links = await response.json()
+      renderizarTabelaLinks()
+    } else {
+      console.error("Erro ao carregar links:", response.status)
+    }
+  } catch (error) {
+    console.error("Erro ao carregar links:", error)
+  }
+}
+
+function popularSelectCorretores() {
+  const select = document.getElementById("linkCorretor")
+  if (!select) return
+
+  select.innerHTML = '<option value="">-- Selecione um corretor --</option>'
+  corretores.forEach(corretor => {
+    const option = document.createElement("option")
+    option.value = corretor.id
+    option.textContent = corretor.nome
+    select.appendChild(option)
+  })
+
+  const filterCorretor = document.getElementById("filterCorretor")
+  if (filterCorretor) {
+    filterCorretor.innerHTML = '<option value="">Todos os corretores</option>'
+    corretores.forEach(corretor => {
+      const option = document.createElement("option")
+      option.value = corretor.id
+      option.textContent = corretor.nome
+      filterCorretor.appendChild(option)
+    })
+  }
+}
+
+function renderizarTabelaLinks() {
+  const tbody = document.getElementById("linksTable")
+  const termoBusca = document.getElementById("searchLinks").value.toLowerCase()
+  const filtroCorretor = document.getElementById("filterCorretor").value
+
+  const cargos = getCargosAsArray(obterUsuarioLogado()?.cargo).map(c => c.toLowerCase()) || []
+  const canEdit = cargos.includes('admin') || cargos.includes('head-admin')
+
+  let filtrados = links.filter(link => {
+    const corretorNome = link.corretor_nome?.toLowerCase() || ''
+    const titulo = link.titulo?.toLowerCase() || ''
+    const url = link.url?.toLowerCase() || ''
+
+    const matchBusca = corretorNome.includes(termoBusca) ||
+                       titulo.includes(termoBusca) ||
+                       url.includes(termoBusca)
+
+    const matchCorretor = !filtroCorretor || link.corretor_id == filtroCorretor
+
+    return matchBusca && matchCorretor
+  })
+
+  if (filtrados.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center">Nenhum link encontrado</td></tr>'
+    return
+  }
+
+  tbody.innerHTML = filtrados.map(link => `
+    <tr>
+      <td>${link.corretor_nome || '-'}</td>
+      <td>${link.titulo}</td>
+      <td><a href="${link.url}" target="_blank" rel="noopener noreferrer">${link.url}</a></td>
+      <td>${link.descricao || '-'}</td>
+      <td>${link.criado_por_nome || '-'}</td>
+      <td>${formatarData(link.criado_em)}</td>
+      ${canEdit ? `<td>
+        <button class="btn-action btn-edit" onclick="editarLink(${link.id})">
+          <i class="fas fa-edit"></i> Editar
+        </button>
+        <button class="btn-action btn-delete" onclick="excluirLink(${link.id})">
+          <i class="fas fa-trash"></i> Excluir
+        </button>
+      </td>` : ''}
+    </tr>
+  `).join('')
+}
+
+// Event listeners for Links
+document.addEventListener("DOMContentLoaded", () => {
+  // Novo Link button
+  const btnNovoLink = document.getElementById("btnNovoLink")
+  if (btnNovoLink) {
+    btnNovoLink.addEventListener("click", () => {
+      linkEmEdicao = null
+      document.getElementById("formLink").reset()
+      document.getElementById("modalLinkTitle").textContent = "Novo Link"
+      document.getElementById("modalLink").classList.add("show")
+    })
+  }
+
+  // Modal Link
+  const modalLink = document.getElementById("modalLink")
+  const closeModalLink = document.getElementById("closeModalLink")
+  const cancelBtnLink = modalLink?.querySelector(".modal-close-btn")
+
+  if (closeModalLink) {
+    closeModalLink.addEventListener("click", () => {
+      modalLink.classList.remove("show")
+    })
+  }
+
+  if (cancelBtnLink) {
+    cancelBtnLink.addEventListener("click", () => {
+      modalLink.classList.remove("show")
+    })
+  }
+
+  // Form Link submit
+  const formLink = document.getElementById("formLink")
+  if (formLink) {
+    formLink.addEventListener("submit", async (e) => {
+      e.preventDefault()
+      await salvarLink()
+    })
+  }
+
+  // Filters for Links
+  const searchLinks = document.getElementById("searchLinks")
+  const filterCorretor = document.getElementById("filterCorretor")
+
+  if (searchLinks) {
+    searchLinks.addEventListener("input", renderizarTabelaLinks)
+  }
+
+  if (filterCorretor) {
+    filterCorretor.addEventListener("change", renderizarTabelaLinks)
+  }
+})
+
+async function salvarLink() {
+  const cargos = getCargosAsArray(obterUsuarioLogado()?.cargo).map(c => c.toLowerCase()) || []
+  const canEdit = cargos.includes('admin') || cargos.includes('head-admin')
+
+  if (!canEdit) {
+    mostrarToast("Você não tem permissão para gerenciar links", "erro")
+    return
+  }
+
+  const dadosLink = {
+    corretor_id: parseInt(document.getElementById("linkCorretor").value),
+    titulo: document.getElementById("linkTitulo").value.trim(),
+    url: document.getElementById("linkUrl").value.trim(),
+    descricao: document.getElementById("linkDescricao").value.trim() || null
+  }
+
+  if (!dadosLink.corretor_id || !dadosLink.titulo || !dadosLink.url) {
+    mostrarToast("Preencha todos os campos obrigatórios", "erro")
+    return
+  }
+
+  try {
+    let response
+    if (linkEmEdicao) {
+      response = await fetch(`/api/corretores/links/${linkEmEdicao}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(dadosLink)
+      })
+    } else {
+      response = await fetch(`/api/corretores/${dadosLink.corretor_id}/links`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(dadosLink)
+      })
+    }
+
+    if (response.ok) {
+      mostrarToast(linkEmEdicao ? "Link atualizado com sucesso!" : "Link criado com sucesso!", "sucesso")
+      document.getElementById("modalLink").classList.remove("show")
+      await carregarLinks()
+    } else {
+      const error = await response.json()
+      mostrarToast("Erro: " + (error.error || "Erro desconhecido"), "erro")
+    }
+  } catch (error) {
+    console.error("Erro ao salvar link:", error)
+    mostrarToast("Erro ao salvar link", "erro")
+  }
+}
+
+// Expose functions to global scope for onclick handlers
+window.editarLink = function(id) {
+  const cargos = getCargosAsArray(obterUsuarioLogado()?.cargo).map(c => c.toLowerCase()) || []
+  const canEdit = cargos.includes('admin') || cargos.includes('head-admin')
+
+  if (!canEdit) {
+    mostrarToast("Você não tem permissão para editar links", "erro")
+    return
+  }
+
+  const link = links.find(l => l.id === id)
+  if (!link) return
+
+  linkEmEdicao = id
+
+  document.getElementById("linkCorretor").value = link.corretor_id
+  document.getElementById("linkTitulo").value = link.titulo
+  document.getElementById("linkUrl").value = link.url
+  document.getElementById("linkDescricao").value = link.descricao || ""
+
+  document.getElementById("modalLinkTitle").textContent = "Editar Link"
+  document.getElementById("modalLink").classList.add("show")
+}
+
+window.excluirLink = function(id) {
+  const cargos = getCargosAsArray(obterUsuarioLogado()?.cargo).map(c => c.toLowerCase()) || []
+  const canEdit = cargos.includes('admin') || cargos.includes('head-admin')
+
+  if (!canEdit) {
+    mostrarToast("Você não tem permissão para excluir links", "erro")
+    return
+  }
+
+  if (confirm("Tem certeza que deseja excluir este link?")) {
+    fetch(`/api/corretores/links/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    })
+    .then(response => {
+      if (response.ok) {
+        mostrarToast("Link excluído com sucesso!", "sucesso")
+        carregarLinks()
+      } else {
+        return response.json().then(error => {
+          throw new Error(error.error || "Erro ao excluir link")
+        })
+      }
+    })
+    .catch(error => {
+      console.error("Erro ao excluir link:", error)
+      mostrarToast("Erro ao excluir link: " + error.message, "erro")
+    })
   }
 }

@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Concretizza - Busca</title>
+    <title>Concretizza - Links dos Corretores</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/styles/captacoes.css?v=6">
+    <link rel="stylesheet" href="/styles/links.css">
 </head>
 <body class="app-page">
     <aside class="sidebar">
@@ -36,11 +36,11 @@
                 <i class="fas fa-calendar"></i>
                 <span>Agendamentos</span>
             </a>
-            <a href="/busca" class="nav-item active">
+            <a href="/busca" class="nav-item">
                 <i class="fas fa-home"></i>
                 <span>Busca</span>
             </a>
-            <a href="/links" class="nav-item">
+            <a href="/links" class="nav-item active">
                 <i class="fas fa-link"></i>
                 <span>Links</span>
             </a>
@@ -79,7 +79,7 @@
                 <button class="sidebar-toggle" id="sidebarToggleMobile">
                     <i class="fas fa-bars"></i>
                 </button>
-                <h1>Busca</h1>
+                <h1>Links dos Corretores</h1>
             </div>
             <div class="header-right">
                 <div class="user-info">
@@ -91,52 +91,89 @@
         </header>
 
         <div class="page-content">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-link"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="totalLinks">0</h3>
+                        <p>Total de Links</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-handshake"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="totalCorretoresComLinks">0</h3>
+                        <p>Corretores com Links</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="linksRecentes">0</h3>
+                        <p>Links Recentes (30 dias)</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-external-link-alt"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="linksAcessados">0</h3>
+                        <p>Links Mais Acessados</p>
+                    </div>
+                </div>
+            </div>
+
             <div class="content-card">
                 <div class="card-header-section">
-                    <h2>Gerenciar Captações Necessárias</h2>
-                    <button class="btn-primary" id="btnNovaCaptacao" style="display: none;">
-                        <i class="fas fa-plus"></i> Nova Busca
-                    </button>
+                    <h2>Gerenciar Links</h2>
+                    <div class="header-actions">
+                        <button class="btn-primary" id="btnNovoLink" style="display: none;">
+                            <i class="fas fa-plus"></i> Novo Link
+                        </button>
+                    </div>
                 </div>
 
                 <div class="filter-bar">
-                    <input type="text" id="searchCaptacoes" placeholder="Buscar por título, região ou objetivo..." class="search-input">
-                    <select id="filterPrioridade" class="select-input">
-                        <option value="">Todas as prioridades</option>
-                        <option value="media">Média</option>
-                        <option value="alta">Alta</option>
-                        <option value="imediata">Imediata</option>
+                    <input type="text" id="searchLinks" placeholder="Buscar por corretor ou título..." class="search-input">
+                    <select id="filterCorretor" class="select-input">
+                        <option value="">Todos os corretores</option>
                     </select>
                 </div>
 
-                <!-- Added bulk delete button that appears when captacoes are selected -->
+                <!-- Added bulk actions that appear when links are selected -->
                 <div class="bulk-actions" id="bulkActions" style="display: none;">
-                    <span id="selectedCount">0 captação(ões) selecionada(s)</span>
-                    <button class="btn-danger" id="btnExcluirSelecionados">
-                        <i class="fas fa-trash"></i> Excluir Selecionados
-                    </button>
+                    <span id="selectedCount">0 link(s) selecionado(s)</span>
+                    <div class="bulk-buttons">
+                        <button class="btn-danger" id="btnExcluirSelecionados">
+                            <i class="fas fa-trash"></i> Excluir Selecionados
+                        </button>
+                    </div>
                 </div>
 
                 <div class="table-responsive">
                     <table class="table">
                         <thead>
                             <tr>
+                                <!-- Adicionando coluna de checkbox igual em clientes.html -->
                                 <th style="width: 50px;" id="headerCheckbox">
                                     <input type="checkbox" id="selectAll" class="checkbox-input">
                                 </th>
-                        <th>Título</th>
-                        <th>Região</th>
-                        <th>Valor Estimado</th>
-                        <th>Prioridade</th>
-                        <th>Objetivo</th>
-                        <th>Criado por</th>
-                        <th>Data</th>
-                        <th id="headerAcoes">Ações</th>
+                                <th>Título</th>
+                                <th>Data</th>
+                                <th>Criado por</th>
+                                <th id="headerAcoesLinks">Ações</th>
                             </tr>
                         </thead>
-                        <tbody id="captacoesTable">
+                        <tbody id="linksTable">
                             <tr>
-                                <td colspan="9" class="text-center">Nenhuma captação encontrada</td>
+                                <td colspan="8" class="text-center">Carregando links...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -151,75 +188,186 @@
                         Próxima <i class="fas fa-chevron-right"></i>
                     </button>
                 </div>
+
+                <div class="items-per-page-container" style="display: none;">
+                    <label for="itemsPerPage">Itens por página:</label>
+                    <select id="itemsPerPage" class="select-input">
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
             </div>
         </div>
     </main>
 
-    <div id="modalCaptacao" class="modal">
+    <div id="modalLink" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 id="modalTitle">Nova Captação</h2>
-                <button class="modal-close" id="closeModal">&times;</button>
+                <h2 id="modalLinkTitle">Novo Link</h2>
+                <button class="modal-close" id="closeModalLink">&times;</button>
             </div>
             <div class="modal-body">
-                <form id="formCaptacao" class="form">
+                <form id="formLink" class="form">
                     <div class="form-group">
-                        <label for="captacaoTitulo">Título *</label>
-                        <input type="text" id="captacaoTitulo" required placeholder="Nome da captação/imóvel">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="captacaoRegiao">Região *</label>
-                        <input type="text" id="captacaoRegiao" required placeholder="Bairro, cidade ou região">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="captacaoValor">Valor Estimado (R$)</label>
-                        <input type="number" id="captacaoValor" placeholder="Valor aproximado">
+                        <label>Corretores *</label>
+                        <div id="corretoresContainer" class="corretores-checkbox-container">
+                            <!-- Checkboxes will be populated by JavaScript -->
+                        </div>
+                        <small style="color: #666; margin-top: 4px;">Selecione um ou mais corretores para este link</small>
                     </div>
                     <div class="form-group">
-                        <label for="captacaoPrioridade">Prioridade *</label>
-                        <select id="captacaoPrioridade" required>
-                            <option value="media" selected>Média</option>
-                            <option value="alta">Alta</option>
-                            <option value="imediata">Imediata</option>
-                        </select>
+                        <label for="linkTitulo">Título *</label>
+                        <input type="text" id="linkTitulo" required placeholder="Nome do link (ex: Imóveis à venda)">
                     </div>
                     <div class="form-group">
-                        <label for="captacaoObjetivo">Objetivo *</label>
-                        <textarea id="captacaoObjetivo" rows="3" required placeholder="Descreva o objetivo desta captação..."></textarea>
+                        <label for="linkUrl">URL *</label>
+                        <input type="url" id="linkUrl" required placeholder="https://exemplo.com">
                     </div>
                     <div class="form-group">
-                        <label for="captacaoObservacoes">Observações</label>
-                        <textarea id="captacaoObservacoes" rows="4" placeholder="Detalhes adicionais sobre a captação..."></textarea>
+                        <label for="linkDescricao">Descrição</label>
+                        <textarea id="linkDescricao" rows="3" placeholder="Descrição opcional do link..."></textarea>
                     </div>
                     <div class="form-actions">
                         <button type="button" class="btn-secondary modal-close-btn">Cancelar</button>
-                        <button type="submit" class="btn-primary">Salvar Captação</button>
+                        <button type="submit" class="btn-primary">Salvar Link</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 
-    <div id="modalConfirmacaoExclusao" class="modal">
+    <!-- Modal de confirmação de exclusão individual -->
+    <div id="modalConfirmacao" class="modal">
         <div class="modal-content modal-confirmation">
             <div class="modal-header">
                 <h2>Confirmar Exclusão</h2>
-                <button class="modal-close" id="closeConfirmacaoExclusao">&times;</button>
+                <button class="modal-close" id="closeConfirmacao">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="confirmation-content">
                     <div class="confirmation-icon">
                         <i class="fas fa-exclamation-triangle"></i>
                     </div>
-                    <p>Tem certeza que deseja excluir a captação <strong id="detalhesCaptacaoExcluir">-</strong>?</p>
+                    <p>Tem certeza que deseja excluir o link <strong id="nomeLinkExcluir">-</strong>?</p>
                     <p class="confirmation-warning">Esta ação não pode ser desfeita.</p>
                 </div>
                 <div class="confirmation-actions">
                     <button class="btn-secondary" id="btnCancelarExclusao">Cancelar</button>
                     <button class="btn-danger" id="btnConfirmarExclusao">
                         <i class="fas fa-trash"></i> Confirmar Exclusão
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de confirmação de exclusão em massa -->
+    <div id="modalConfirmacaoMassa" class="modal">
+        <div class="modal-content modal-confirmation">
+            <div class="modal-header">
+                <h2>Confirmar Exclusão em Massa</h2>
+                <button class="modal-close" id="closeConfirmacaoMassa">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="confirmation-content">
+                    <div class="confirmation-icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <p>Tem certeza que deseja excluir <strong id="quantidadeLinksExcluir">0</strong> link(s) selecionado(s)?</p>
+                    <p class="confirmation-warning">Esta ação não pode ser desfeita.</p>
+                    <div id="listaLinksExcluir" class="bulk-edit-list" style="margin-top: var(--spacing-md);">
+                        <!-- Lista de links será inserida aqui -->
+                    </div>
+                </div>
+                <div class="confirmation-actions">
+                    <button class="btn-secondary" id="btnCancelarExclusaoMassa">Cancelar</button>
+                    <button class="btn-danger" id="btnConfirmarExclusaoMassa">
+                        <i class="fas fa-trash"></i> Confirmar Exclusão
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de detalhes do link -->
+    <div id="modalDetalhesLink" class="modal">
+        <div class="modal-content modal-details">
+            <div class="modal-header">
+                <h2 id="modalDetailsTitle">Detalhes do Link</h2>
+                <button class="modal-close" id="closeDetailsModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <div class="detail-icon">
+                            <i class="fas fa-heading"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Título</span>
+                            <span class="detail-value" id="detailLinkTitulo">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Corretor information hidden -->
+                    <!-- <div class="detail-item">
+                        <div class="detail-icon">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Corretor</span>
+                            <span class="detail-value" id="detailLinkCorretor">-</span>
+                        </div>
+                    </div> -->
+
+                    <div class="detail-item">
+                        <div class="detail-icon">
+                            <i class="fas fa-calendar"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Data de Criação</span>
+                            <span class="detail-value" id="detailLinkDataCriacao">-</span>
+                        </div>
+                    </div>
+
+                    <div class="detail-item">
+                        <div class="detail-icon">
+                            <i class="fas fa-user-check"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Criado por</span>
+                            <span class="detail-value" id="detailLinkCriadoPor">-</span>
+                        </div>
+                    </div>
+
+                    <div class="detail-item">
+                        <div class="detail-icon">
+                            <i class="fas fa-external-link-alt"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Acessar Link</span>
+                            <a id="detailLinkAcesso" href="#" target="_blank" class="link-text">Abrir link</a>
+                        </div>
+                    </div>
+
+                    <div class="detail-item detail-full">
+                        <div class="detail-icon">
+                            <i class="fas fa-file-alt"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Descrição</span>
+                            <span class="detail-value" id="detailLinkDescricao">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="details-actions">
+                    <button class="btn-primary" id="btnEditarDetalhes" style="display: none;">
+                        <i class="fas fa-edit"></i> Editar Link
+                    </button>
+                    <button class="btn-secondary" id="btnFecharDetalhes">
+                        Fechar
                     </button>
                 </div>
             </div>
@@ -250,147 +398,10 @@
         </div>
     </div>
 
-    <div id="modalDetalhesCaptacao" class="modal">
-        <div class="modal-content modal-details">
-            <div class="modal-header">
-                <h2>Detalhes da Captação Necessária</h2>
-                <button class="modal-close" id="closeModalDetalhes">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="user-profile-header">
-                    <div class="profile-avatar">
-                        <span id="detalheAvatar">C</span>
-                    </div>
-                    <div class="profile-info">
-                        <h3 id="detalheTituloHeader">-</h3>
-                        <span id="detalhePrioridadeHeader" class="badge">-</span>
-                    </div>
-                </div>
-
-                <div class="details-grid">
-
-                    <div class="detail-item">
-                        <div class="detail-icon">
-                            <i class="fas fa-map-marker-alt"></i>
-                        </div>
-                        <div class="detail-info">
-                            <span class="detail-label">Região</span>
-                            <span class="detail-value" id="detalheRegiao">-</span>
-                        </div>
-                    </div>
-
-                    <div class="detail-item">
-                        <div class="detail-icon">
-                            <i class="fas fa-dollar-sign"></i>
-                        </div>
-                        <div class="detail-info">
-                            <span class="detail-label">Valor Estimado</span>
-                            <span class="detail-value" id="detalheValor">-</span>
-                        </div>
-                    </div>
-
-                    <div class="detail-item">
-                        <div class="detail-icon">
-                            <i class="fas fa-calendar"></i>
-                        </div>
-                        <div class="detail-info">
-                            <span class="detail-label">Data de Criação</span>
-                            <span class="detail-value" id="detalheDataCriacao">-</span>
-                        </div>
-                    </div>
-
-                    <div class="detail-item">
-                        <div class="detail-icon">
-                            <i class="fas fa-user"></i>
-                        </div>
-                        <div class="detail-info">
-                            <span class="detail-label">Criado por</span>
-                            <span class="detail-value" id="detalheCriadoPor">-</span>
-                        </div>
-                    </div>
-
-                    <div class="detail-item detail-full">
-                        <div class="detail-icon">
-                            <i class="fas fa-clock"></i>
-                        </div>
-                        <div class="detail-info">
-                            <span class="detail-label">Última Atualização</span>
-                            <span class="detail-value" id="detalheDataAtualizacao">-</span>
-                        </div>
-                    </div>
-
-                    <div class="detail-item detail-full">
-                        <div class="detail-icon">
-                            <i class="fas fa-bullseye"></i>
-                        </div>
-                        <div class="detail-info">
-                            <span class="detail-label">Objetivo</span>
-                            <span class="detail-value" id="detalheObjetivo">-</span>
-                        </div>
-                    </div>
-
-                    <div class="detail-item detail-full">
-                        <div class="detail-icon">
-                            <i class="fas fa-file-alt"></i>
-                        </div>
-                        <div class="detail-info">
-                            <span class="detail-label">Observações</span>
-                            <span class="detail-value" id="detalheObservacoes">-</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="details-actions">
-                    <button class="btn-primary" id="btnEditarDetalhes" onclick="editarCaptacao(window.captacaoDetalhesAtual?.id)">
-                        <i class="fas fa-edit"></i> Editar
-                    </button>
-                    <button class="btn-secondary" id="btnFecharDetalhes">
-                        Fechar
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="modalLink" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modalLinkTitle">Novo Link</h2>
-                <button class="modal-close" id="closeModalLink">&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="formLink" class="form">
-                    <div class="form-group">
-                        <label for="linkCorretor">Corretor *</label>
-                        <select id="linkCorretor" required>
-                            <option value="">-- Selecione um corretor --</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="linkTitulo">Título *</label>
-                        <input type="text" id="linkTitulo" required placeholder="Nome do link">
-                    </div>
-                    <div class="form-group">
-                        <label for="linkUrl">URL *</label>
-                        <input type="url" id="linkUrl" required placeholder="https://exemplo.com">
-                    </div>
-                    <div class="form-group">
-                        <label for="linkDescricao">Descrição</label>
-                        <textarea id="linkDescricao" rows="3" placeholder="Descrição opcional do link..."></textarea>
-                    </div>
-                    <div class="form-actions">
-                        <button type="button" class="btn-secondary modal-close-btn">Cancelar</button>
-                        <button type="submit" class="btn-primary">Salvar Link</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
     <div id="toastNotification" class="toast"></div>
 
-    <script src="/scripts/utils/api.js?v=2"></script>
-    <script src="/scripts/utils/permissions.js?v=2"></script>
-    <script src="/scripts/captacoes.js?v=11"></script>
+    <script src="/scripts/utils/api.js"></script>
+    <script src="/scripts/utils/permissions.js"></script>
+    <script src="/scripts/links.js"></script>
 </body>
 </html>

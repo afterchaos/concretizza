@@ -215,21 +215,21 @@ function configurarEventos() {
   if (logoutBtn) {
     logoutBtn.addEventListener("click", (e) => {
       e.preventDefault()
-      document.getElementById("modalConfirmacaoLogout").style.display = "flex"
+      document.getElementById("modalConfirmacaoLogout").classList.add("show")
     })
   }
 
   const closeConfirmacaoLogout = document.getElementById("closeConfirmacaoLogout")
   if (closeConfirmacaoLogout) {
     closeConfirmacaoLogout.addEventListener("click", () => {
-      document.getElementById("modalConfirmacaoLogout").style.display = "none"
+      document.getElementById("modalConfirmacaoLogout").classList.remove("show")
     })
   }
 
   const btnCancelarLogout = document.getElementById("btnCancelarLogout")
   if (btnCancelarLogout) {
     btnCancelarLogout.addEventListener("click", () => {
-      document.getElementById("modalConfirmacaoLogout").style.display = "none"
+      document.getElementById("modalConfirmacaoLogout").classList.remove("show")
     })
   }
 
@@ -641,12 +641,12 @@ function formatarCargo(cargo) {
   const map = {
     "head-admin": "Head Admin",
     admin: "Admin",
-    corretor: "Corretor(a)",
+    // "corretor": "Corretor(a)", // Commented out to hide corretor information
     visualizar: "Visualizar",
     visualizador: "Visualizar"
   }
-  
-  return cargos.map(c => map[c.toLowerCase()] || (c ? c.charAt(0).toUpperCase() + c.slice(1) : "")).join(", ");
+
+  return cargos.map(c => map[c.toLowerCase()] || (c ? c.charAt(0).toUpperCase() + c.slice(1) : "")).filter(label => label !== "").join(", ");
 }
 
 function atualizarCheckboxesUsuarios() {

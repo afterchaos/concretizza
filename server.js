@@ -119,9 +119,9 @@ function dbQuery(sql, params = []) {
           else resolve({ rows })
         })
       } else {
-        db.run(sql, params, function(err) {
+        db.run(sql, params, (err, result) => {
           if (err) reject(err)
-          else resolve({ lastID: this.lastID, changes: this.changes, rowCount: this.changes })
+          else resolve(result)
         })
       }
     }
@@ -325,6 +325,90 @@ async function initializeTables() {
       )
     `)
     console.log(`[${getDataSaoPaulo()}] ✓ Tabela bug_reports criada`)
+
+    await dbQuery(`
+      CREATE TABLE IF NOT EXISTS corretor_links (
+        id ${db.isPostgres ? 'SERIAL' : 'INTEGER'} PRIMARY KEY ${db.isPostgres ? '' : 'AUTOINCREMENT'},
+        titulo TEXT NOT NULL,
+        url TEXT NOT NULL,
+        descricao TEXT,
+        criado_por INTEGER NOT NULL REFERENCES usuarios(id),
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+    console.log(`[${getDataSaoPaulo()}] ✓ Tabela corretor_links criada`)
+
+    // Migration: Remove corretor_id column if it exists (from old schema)
+    try {
+      if (db.isPostgres) {
+        await dbQuery("ALTER TABLE corretor_links DROP COLUMN IF EXISTS corretor_id")
+      } else {
+        // For SQLite, check if corretor_id column exists and remove it
+        console.log(`[${getDataSaoPaulo()}] Verificando migração de corretor_links...`)
+
+        // Check if we need to migrate by trying to select corretor_id
+        try {
+          await dbQuery("SELECT corretor_id FROM corretor_links LIMIT 1")
+          console.log(`[${getDataSaoPaulo()}] Coluna corretor_id encontrada, executando migração...`)
+
+          // For SQLite, we need to recreate the table without the column
+          await dbQuery(`
+            CREATE TABLE corretor_links_new (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              titulo TEXT NOT NULL,
+              url TEXT NOT NULL,
+              descricao TEXT,
+              criado_por INTEGER NOT NULL REFERENCES usuarios(id),
+              criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+          `)
+
+          // Copy data from old table to new table
+          await dbQuery(`
+            INSERT INTO corretor_links_new (id, titulo, url, descricao, criado_por, criado_em, atualizado_em)
+            SELECT id, titulo, url, descricao, criado_por, criado_em, atualizado_em FROM corretor_links
+          `)
+
+          // Migrate link_assignments: create assignments for existing links
+          const existingLinksResult = await dbQuery("SELECT id, corretor_id FROM corretor_links WHERE corretor_id IS NOT NULL")
+          const existingLinks = existingLinksResult.rows || existingLinksResult
+          for (const link of existingLinks) {
+            try {
+              await dbQuery(
+                "INSERT OR IGNORE INTO link_assignments (link_id, corretor_id) VALUES ($1, $2)",
+                [link.id, link.corretor_id]
+              )
+            } catch (e) {
+              // Ignore if assignment already exists
+            }
+          }
+
+          // Replace old table with new table
+          await dbQuery("DROP TABLE corretor_links")
+          await dbQuery("ALTER TABLE corretor_links_new RENAME TO corretor_links")
+
+          console.log(`[${getDataSaoPaulo()}] ✓ Migração de corretor_links concluída`)
+        } catch (selectError) {
+          // Column doesn't exist or table is empty, which is fine
+          console.log(`[${getDataSaoPaulo()}] ✓ corretor_links já está na estrutura correta ou vazio`)
+        }
+      }
+    } catch (e) {
+      console.log(`[${getDataSaoPaulo()}] Nota: Erro na migração de corretor_links (pode ser normal se já executada):`, e.message)
+    }
+
+    await dbQuery(`
+      CREATE TABLE IF NOT EXISTS link_assignments (
+        id SERIAL PRIMARY KEY,
+        link_id INTEGER NOT NULL REFERENCES corretor_links(id) ON DELETE CASCADE,
+        corretor_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(link_id, corretor_id)
+      )
+    `)
+    console.log(`[${getDataSaoPaulo()}] ✓ Tabela link_assignments criada`)
 
     await dbQuery(`
       CREATE TABLE IF NOT EXISTS bug_report_messages (
@@ -1311,7 +1395,7 @@ app.delete(
 )
 
 app.get(
-  "/api/clientes-disponiveis",                                                              
+  "/api/clientes-disponiveis",
   autenticar,
   autorizar("head-admin", "admin"),
   async (req, res) => {
@@ -1323,11 +1407,213 @@ app.get(
          LEFT JOIN usuarios ua ON c.atribuido_a = ua.id
          ORDER BY c.nome`
       )
-      
+
       res.json(resultado.rows || [])
     } catch (err) {
       console.error(`[${getDataSaoPaulo()}] [CLIENTES] Erro ao buscar clientes disponíveis:`, err)
       res.status(500).json({ error: "Erro ao buscar clientes: " + err.message })
+    }
+  }
+)
+
+// ===== ROTAS DE LINKS DOS CORRETORES =====
+app.post(
+  "/api/links",
+  autenticar,
+  autorizar("admin", "head-admin"),
+  [
+    body("titulo").trim().notEmpty().withMessage("Título é obrigatório"),
+    body("url").trim().notEmpty().withMessage("URL é obrigatória"),
+    body("corretor_ids").isArray().withMessage("Corretores devem ser um array"),
+    body("corretor_ids.*").isInt().withMessage("IDs dos corretores devem ser números")
+  ],
+  validarRequisicao,
+  async (req, res) => {
+    const { titulo, url, descricao, corretor_ids } = req.body
+    const criadoPor = req.usuario.id
+
+    try {
+      // Verificar se todos os corretores existem e são corretores
+      const placeholders = corretor_ids.map((_, index) => `$${index + 1}`).join(', ')
+      const corretoresResult = await dbQuery(
+        `SELECT id, nome FROM usuarios WHERE id IN (${placeholders}) AND permissao LIKE '%corretor%'`,
+        corretor_ids
+      )
+
+      if (corretoresResult.rows.length !== corretor_ids.length) {
+        return res.status(404).json({ error: "Um ou mais corretores não encontrados" })
+      }
+
+      // Criar o link
+      const linkResult = await dbQuery(
+        "INSERT INTO corretor_links (titulo, url, descricao, criado_por) VALUES ($1, $2, $3, $4)",
+        [titulo, url, descricao || null, criadoPor]
+      )
+
+      const linkId = linkResult.lastID
+
+      if (!linkId) {
+        console.error("Erro: INSERT result:", linkResult)
+        throw new Error("Falha ao obter ID do link criado")
+      }
+
+      try {
+        // Remover duplicatas dos IDs dos corretores
+        const uniqueCorretorIds = [...new Set(corretor_ids)]
+
+        // Criar as atribuições
+        for (const corretorId of uniqueCorretorIds) {
+          await dbQuery(
+            "INSERT INTO link_assignments (link_id, corretor_id) VALUES ($1, $2)",
+            [linkId, corretorId]
+          )
+        }
+      } catch (assignmentError) {
+        // Se falhar ao criar assignments, deletar o link para manter consistência
+        await dbQuery("DELETE FROM corretor_links WHERE id = $1", [linkId])
+        throw assignmentError
+      }
+
+      const nomesCorretores = corretoresResult.rows.map(c => c.nome).join(', ')
+      await registrarLog(req.usuario.id, "CRIAR", "Links Corretores", `Link criado para corretores "${nomesCorretores}": ${titulo}`, nomesCorretores, req)
+
+      res.status(201).json({ id: linkId, message: "Link criado com sucesso" })
+    } catch (err) {
+      console.error(`[${getDataSaoPaulo()}] [LINKS] Erro ao criar link:`, err)
+      res.status(500).json({ error: "Erro ao criar link: " + err.message })
+    }
+  }
+)
+
+app.get(
+  "/api/corretores/:corretor_id/links",
+  autenticar,
+  async (req, res) => {
+    try {
+      const { corretor_id } = req.params
+      const cargos = req.usuario.cargo ? req.usuario.cargo.toLowerCase().split(',').map(c => c.trim()) : []
+      const isAdmin = cargos.includes("admin") || cargos.includes("head-admin")
+      const isCorretor = cargos.includes("corretor")
+
+      // Verificar permissões: admin pode ver qualquer corretor, corretor só pode ver os próprios links
+      if (!isAdmin && (!isCorretor || parseInt(corretor_id) !== req.usuario.id)) {
+        return res.status(403).json({ error: "Permissão negada" })
+      }
+
+      const result = await dbQuery(`
+        SELECT cl.*, uc.nome as criado_por_nome,
+               GROUP_CONCAT(u.nome, ', ') as corretores_nomes
+        FROM corretor_links cl
+        LEFT JOIN link_assignments la ON cl.id = la.link_id
+        LEFT JOIN usuarios u ON la.corretor_id = u.id
+        LEFT JOIN usuarios uc ON cl.criado_por = uc.id
+        WHERE la.corretor_id = $1
+        GROUP BY cl.id ORDER BY cl.criado_em DESC
+      `, [corretor_id])
+
+      res.json(result.rows || [])
+    } catch (err) {
+      console.error(`[${getDataSaoPaulo()}] [LINKS] Erro ao buscar links do corretor:`, err)
+      res.status(500).json({ error: "Erro ao buscar links: " + err.message })
+    }
+  }
+)
+
+app.get(
+  "/api/corretores/links",
+  autenticar,
+  async (req, res) => {
+    try {
+      const cargos = req.usuario.cargo ? req.usuario.cargo.toLowerCase().split(',').map(c => c.trim()) : []
+      const isAdmin = cargos.includes("admin") || cargos.includes("head-admin")
+      const isCorretor = cargos.includes("corretor")
+      const usuarioId = req.usuario.id
+
+      let query = `
+        SELECT cl.*, uc.nome as criado_por_nome,
+               GROUP_CONCAT(u.nome, ', ') as corretores_nomes
+        FROM corretor_links cl
+        LEFT JOIN link_assignments la ON cl.id = la.link_id
+        LEFT JOIN usuarios u ON la.corretor_id = u.id
+        LEFT JOIN usuarios uc ON cl.criado_por = uc.id
+      `
+
+      let params = []
+
+      if (!isAdmin && isCorretor) {
+        query += " WHERE la.corretor_id = $1"
+        params = [usuarioId]
+      }
+
+      query += " GROUP BY cl.id ORDER BY cl.criado_em DESC"
+
+      const result = await dbQuery(query, params)
+
+      res.json(result.rows || [])
+    } catch (err) {
+      console.error(`[${getDataSaoPaulo()}] [LINKS] Erro ao buscar links:`, err)
+      res.status(500).json({ error: "Erro ao buscar links: " + err.message })
+    }
+  }
+)
+
+app.put(
+  "/api/corretores/links/:id",
+  autenticar,
+  autorizar("admin", "head-admin"),
+  [param("id").isInt().withMessage("ID inválido")],
+  validarRequisicao,
+  async (req, res) => {
+    const { id } = req.params
+    const { titulo, url, descricao } = req.body
+
+    try {
+      const link = await dbQuery("SELECT titulo FROM corretor_links WHERE id = $1", [id])
+      if (link.rows.length === 0) {
+        return res.status(404).json({ error: "Link não encontrado" })
+      }
+
+      const tituloAtual = link.rows[0].titulo
+
+      await dbQuery(
+        "UPDATE corretor_links SET titulo = COALESCE($1, titulo), url = COALESCE($2, url), descricao = COALESCE($3, descricao), atualizado_em = CURRENT_TIMESTAMP WHERE id = $4",
+        [titulo, url, descricao, id]
+      )
+
+      const tituloFinal = titulo || tituloAtual
+      await registrarLog(req.usuario.id, "EDITAR", "Links Corretores", `Link atualizado: ${tituloFinal}`, tituloFinal, req)
+      res.json({ success: true, message: "Link atualizado com sucesso" })
+    } catch (err) {
+      console.error(`[${getDataSaoPaulo()}] [LINKS] Erro ao atualizar link:`, err)
+      res.status(500).json({ error: "Erro ao atualizar link: " + err.message })
+    }
+  }
+)
+
+app.delete(
+  "/api/corretores/links/:id",
+  autenticar,
+  autorizar("admin", "head-admin"),
+  [param("id").isInt().withMessage("ID inválido")],
+  validarRequisicao,
+  async (req, res) => {
+    const { id } = req.params
+
+    try {
+      const link = await dbQuery("SELECT titulo FROM corretor_links WHERE id = $1", [id])
+      if (link.rows.length === 0) {
+        return res.status(404).json({ error: "Link não encontrado" })
+      }
+
+      const titulo = link.rows[0].titulo
+
+      await dbQuery("DELETE FROM corretor_links WHERE id = $1", [id])
+
+      await registrarLog(req.usuario.id, "DELETAR", "Links Corretores", `Link deletado: ${titulo}`, titulo, req)
+      res.json({ success: true, message: "Link deletado com sucesso" })
+    } catch (err) {
+      console.error(`[${getDataSaoPaulo()}] [LINKS] Erro ao deletar link:`, err)
+      res.status(500).json({ error: "Erro ao deletar link: " + err.message })
     }
   }
 )
@@ -2036,6 +2322,10 @@ app.get("/bug-reports", (req, res) => {
 
 app.get("/busca", (req, res) => {
   res.sendFile(path.join(__dirname, "src", "pages", "busca.html"))
+})
+
+app.get("/links", (req, res) => {
+  res.sendFile(path.join(__dirname, "src", "pages", "links.html"))
 })
 
 app.get("/pages/:page", (req, res) => {

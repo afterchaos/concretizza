@@ -79,21 +79,22 @@ function configurarEventos() {
   if (logoutBtn) {
     logoutBtn.addEventListener("click", (e) => {
       e.preventDefault()
-      document.getElementById("modalConfirmacaoLogout").style.display = "flex"
+      e.stopPropagation()
+      document.getElementById("modalConfirmacaoLogout").classList.add("show")
     })
   }
 
   const closeConfirmacaoLogout = document.getElementById("closeConfirmacaoLogout")
   if (closeConfirmacaoLogout) {
     closeConfirmacaoLogout.addEventListener("click", () => {
-      document.getElementById("modalConfirmacaoLogout").style.display = "none"
+      document.getElementById("modalConfirmacaoLogout").classList.remove("show")
     })
   }
 
   const btnCancelarLogout = document.getElementById("btnCancelarLogout")
   if (btnCancelarLogout) {
     btnCancelarLogout.addEventListener("click", () => {
-      document.getElementById("modalConfirmacaoLogout").style.display = "none"
+      document.getElementById("modalConfirmacaoLogout").classList.remove("show")
     })
   }
 
@@ -109,6 +110,14 @@ function configurarEventos() {
       e.target.classList.remove("show")
       e.target.classList.remove("active")
     }
+  })
+
+  // Impedir fechamento do modal ao clicar no conteúdo
+  const modalContents = document.querySelectorAll(".modal-content")
+  modalContents.forEach((content) => {
+    content.addEventListener("click", (e) => {
+      e.stopPropagation()
+    })
   })
 
   const navItems = document.querySelectorAll(".nav-item[data-page]")
