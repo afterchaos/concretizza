@@ -169,7 +169,10 @@
                 <div class="bulk-actions" id="bulkActions" style="display: none;">
                     <span id="selectedCount">0 cliente(s) selecionado(s)</span>
                     <div class="bulk-buttons">
-                        <button class="btn-primary" id="btnEditarSelecionados">
+                        <button class="btn-primary" id="btnAtribuirSelecionados">
+                            <i class="fas fa-user-plus"></i> Atribuir Corretor
+                        </button>
+                        <button class="btn-secondary" id="btnEditarSelecionados">
                             <i class="fas fa-edit"></i> Editar Status
                         </button>
                         <button class="btn-danger" id="btnExcluirSelecionados">
@@ -576,11 +579,42 @@
         </div>
     </div>
 
+    <!-- Modal de atribuição em massa -->
+    <div id="modalAtribuirSelecionados" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Atribuir Corretores aos Clientes Selecionados</h2>
+                <button class="modal-close" id="closeAtribuirSelecionados">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="bulk-edit-info">
+                    <p><strong id="bulkAssignCount">0</strong> cliente(s) selecionado(s)</p>
+                    <div id="bulkAssignClientesList" class="bulk-edit-list">
+                        <!-- Lista de clientes será inserida aqui -->
+                    </div>
+                </div>
+                <form id="formAtribuirSelecionados" class="form">
+                    <div class="form-group">
+                        <label for="bulkAssignCorretor">Selecionar Corretor *</label>
+                        <select id="bulkAssignCorretor" required>
+                            <option value="">Selecione um corretor</option>
+                        </select>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary modal-close-btn" id="btnCancelarBulkAssign">Cancelar</button>
+                        <button type="submit" class="btn-primary" id="btnSalvarBulkAssign">
+                            <i class="fas fa-user-plus"></i> Atribuir Corretor
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <div id="toastNotification" class="toast"></div>
 
     <script src="/scripts/utils/api.js?v=2"></script>
     <script src="/scripts/utils/permissions.js?v=2"></script>
-    <script src="/scripts/utils/data.js?v=2"></script>
     <script src="/scripts/utils/logs.js?v=2"></script>
     <script src="/scripts/clientes.js?v=2"></script>
 </body>

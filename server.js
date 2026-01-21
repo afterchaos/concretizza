@@ -871,33 +871,91 @@ app.delete(
     const cargos = req.usuario.cargo ? req.usuario.cargo.toLowerCase().split(',').map(c => c.trim()) : []
     const isCorretor = cargos.includes("corretor")
     const isAdmin = cargos.includes("admin") || cargos.includes("head-admin")
-    
+
     try {
       const clienteResult = await dbQuery("SELECT nome, usuario_id FROM clientes WHERE id = $1", [id])
       const cliente = clienteResult.rows[0]
-      
+
       if (!cliente) {
         return res.status(404).json({ error: "Cliente não encontrado" })
       }
-      
+
       if (isCorretor && !isAdmin && cliente.usuario_id !== req.usuario.id) {
         console.log(`[${getDataSaoPaulo()}] [CLIENTES DELETE] Corretor tentou deletar cliente de outro usuário`)
         return res.status(403).json({ error: "Você não tem permissão para deletar este cliente" })
       }
-      
+
       const clienteNome = cliente?.nome || id
-      
+
       const deleteResult = await dbQuery("DELETE FROM clientes WHERE id = $1", [id])
-      
+
       if (deleteResult.rowCount === 0) {
         return res.status(404).json({ error: "Cliente não encontrado" })
       }
-      
+
       await registrarLog(req.usuario.id, "DELETAR", "Clientes", `Cliente deletado: ${id}`, clienteNome, req)
       res.json({ success: true, message: "Cliente deletado com sucesso" })
     } catch (error) {
       console.error("[CLIENTES DELETE] Erro ao deletar cliente:", error)
       res.status(500).json({ error: "Erro ao deletar cliente: " + error.message })
+    }
+  }
+)
+
+app.post(
+  "/api/clientes/:id/atribuir",
+  autenticar,
+  autorizar("admin", "head-admin"),
+  [param("id").isInt().withMessage("ID inválido")],
+  validarRequisicao,
+  async (req, res) => {
+    try {
+      const { id } = req.params
+      const { atribuido_a } = req.body
+
+      if (!atribuido_a) {
+        return res.status(400).json({ error: "Corretor não especificado" })
+      }
+
+      // Verificar se o cliente existe
+      const clienteResult = await dbQuery("SELECT nome, atribuido_a FROM clientes WHERE id = $1", [id])
+      if (clienteResult.rows.length === 0) {
+        return res.status(404).json({ error: "Cliente não encontrado" })
+      }
+
+      // Verificar se o corretor existe e é um corretor
+      const corretorResult = await dbQuery("SELECT nome FROM usuarios WHERE id = $1 AND permissao LIKE '%corretor%'", [atribuido_a])
+      if (corretorResult.rows.length === 0) {
+        return res.status(404).json({ error: "Corretor não encontrado" })
+      }
+
+      const cliente = clienteResult.rows[0]
+      const nomeCliente = cliente.nome
+      const nomeCorretor = corretorResult.rows[0].nome
+
+      // Verificar se já está atribuído ao mesmo corretor
+      if (cliente.atribuido_a === parseInt(atribuido_a)) {
+        return res.status(400).json({ error: "Este cliente já está atribuído a este corretor" })
+      }
+
+      // Atualizar atribuição
+      const dataAtribuicao = getDataSaoPauloDate(new Date().toISOString())
+      const resultado = await dbQuery(
+        "UPDATE clientes SET atribuido_a = $1, data_atribuicao = $2, atualizado_em = CURRENT_TIMESTAMP WHERE id = $3",
+        [parseInt(atribuido_a), dataAtribuicao, parseInt(id)]
+      )
+
+      if (resultado.rowCount === 0) {
+        return res.status(404).json({ error: "Cliente não encontrado" })
+      }
+
+      await registrarLog(req.usuario.id, "ATRIBUIR_CLIENTE", "Clientes", `Cliente "${nomeCliente}" atribuído ao corretor "${nomeCorretor}"`, nomeCliente, req)
+
+      console.log(`[${getDataSaoPaulo()}] [CLIENTES ATRIBUIR] Cliente ${id} atribuído ao corretor ${atribuido_a} por ${req.usuario.username}`)
+      res.json({ message: "Cliente atribuído com sucesso" })
+    } catch (err) {
+      console.error(`[${getDataSaoPaulo()}] [CLIENTES ATRIBUIR] Erro ao atribuir cliente:`, err)
+      res.status(500).json({ error: "Erro ao atribuir cliente: " + err.message })
     }
   }
 )

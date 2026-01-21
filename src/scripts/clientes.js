@@ -467,6 +467,11 @@ function configurarEventos() {
     })
   }
 
+  const btnAtribuirSelecionados = document.getElementById("btnAtribuirSelecionados")
+  if (btnAtribuirSelecionados) {
+    btnAtribuirSelecionados.addEventListener("click", abrirModalAtribuirSelecionados)
+  }
+
   const btnEditarSelecionados = document.getElementById("btnEditarSelecionados")
   if (btnEditarSelecionados) {
     btnEditarSelecionados.addEventListener("click", abrirModalEditarSelecionados)
@@ -572,6 +577,29 @@ function configurarEventos() {
     formEditarSelecionados.addEventListener("submit", (e) => {
       e.preventDefault()
       salvarEdicaoEmMassa()
+    })
+  }
+
+  // Modal bulk assign event listeners
+  const closeAtribuirSelecionados = document.getElementById("closeAtribuirSelecionados")
+  if (closeAtribuirSelecionados) {
+    closeAtribuirSelecionados.addEventListener("click", () => {
+      document.getElementById("modalAtribuirSelecionados").style.display = "none"
+    })
+  }
+
+  const btnCancelarBulkAssign = document.getElementById("btnCancelarBulkAssign")
+  if (btnCancelarBulkAssign) {
+    btnCancelarBulkAssign.addEventListener("click", () => {
+      document.getElementById("modalAtribuirSelecionados").style.display = "none"
+    })
+  }
+
+  const formAtribuirSelecionados = document.getElementById("formAtribuirSelecionados")
+  if (formAtribuirSelecionados) {
+    formAtribuirSelecionados.addEventListener("submit", (e) => {
+      e.preventDefault()
+      salvarAtribuicaoEmMassa()
     })
   }
 
@@ -1140,6 +1168,160 @@ async function salvarEdicaoEmMassa() {
   }
 }
 
+function abrirModalAtribuirSelecionados() {
+  if (clientesSelecionados.length === 0) {
+    mostrarNotificacao("Nenhum cliente selecionado", "aviso")
+    return
+  }
+
+  // Verificar permissões - apenas admins podem atribuir clientes
+  if (!isAdminOrHeadAdmin()) {
+    mostrarNotificacao("Você não tem permissão para atribuir clientes a corretores", "erro")
+    return
+  }
+
+  // Preencher informações do modal
+  document.getElementById("bulkAssignCount").textContent = clientesSelecionados.length
+
+  // Mostrar lista de clientes selecionados
+  const listaContainer = document.getElementById("bulkAssignClientesList")
+  if (listaContainer) {
+    const clientesSelecionadosInfo = clientesSelecionados.map(id => {
+      const cliente = clientes.find(c => c.id === id)
+      return cliente ? `<div class="bulk-client-item">${cliente.nome}</div>` : ""
+    }).filter(Boolean)
+
+    listaContainer.innerHTML = clientesSelecionadosInfo.join("")
+  }
+
+  // Popular select de corretores
+  const selectCorretor = document.getElementById("bulkAssignCorretor")
+  if (selectCorretor) {
+    selectCorretor.innerHTML = `<option value="">Selecione um corretor</option>`
+    corretores.forEach(corretor => {
+      const option = document.createElement("option")
+      option.value = corretor.id
+      option.textContent = corretor.nome
+      selectCorretor.appendChild(option)
+    })
+  }
+
+  // Resetar formulário
+  const form = document.getElementById("formAtribuirSelecionados")
+  if (form) {
+    form.reset()
+  }
+
+  // Mostrar modal
+  document.getElementById("modalAtribuirSelecionados").style.display = "flex"
+}
+
+async function salvarAtribuicaoEmMassa() {
+  const corretorId = document.getElementById("bulkAssignCorretor").value
+
+  if (!corretorId) {
+    mostrarNotificacao("Selecione um corretor", "aviso")
+    return
+  }
+
+  const corretor = corretores.find(c => c.id == corretorId)
+  if (!corretor) {
+    mostrarNotificacao("Corretor não encontrado", "erro")
+    return
+  }
+
+  const btnSalvar = document.getElementById("btnSalvarBulkAssign")
+  try {
+    if (btnSalvar) {
+      btnSalvar.disabled = true
+      btnSalvar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Atribuindo...'
+    }
+
+    mostrarCarregando(true)
+
+    // Atribuir cada cliente selecionado
+    const atribuicoes = []
+    const erros = []
+
+    for (const id of clientesSelecionados) {
+      const cliente = clientes.find((c) => c.id === id)
+      if (cliente) {
+        try {
+          console.log(`Tentando atribuir cliente ${cliente.nome} (ID: ${id}) ao corretor ${corretor.nome} (ID: ${corretorId})`)
+          const resultado = await atribuirCliente(id, corretorId)
+          console.log(`Atribuição bem-sucedida para cliente ${cliente.nome}:`, resultado)
+
+          registrarLog("ATRIBUIR_CLIENTE", "CLIENTES", `Cliente "${cliente.nome}" atribuído ao corretor "${corretor.nome}"`, cliente.nome)
+
+          // Atualizar no array local
+          const clienteIndex = clientes.findIndex(c => c.id === id)
+          if (clienteIndex !== -1) {
+            clientes[clienteIndex] = {
+              ...clientes[clienteIndex],
+              atribuido_a: corretorId,
+              atribuido_a_nome: corretor.nome,
+              data_atribuicao: new Date().toISOString(),
+              atualizado_em: new Date().toISOString()
+            }
+          }
+
+          atribuicoes.push(cliente.nome)
+        } catch (error) {
+          console.error(`Erro ao atribuir cliente ${cliente.nome}:`, error)
+          erros.push(`${cliente.nome}: ${error.message}`)
+        }
+      }
+    }
+
+    document.getElementById("modalAtribuirSelecionados").style.display = "none"
+
+    // Mostrar resultado baseado no sucesso
+    if (atribuicoes.length > 0) {
+      let mensagem = `${atribuicoes.length} cliente(s) atribuído(s) com sucesso ao corretor ${corretor.nome}!`
+      if (erros.length > 0) {
+        mensagem += ` (${erros.length} falha(s))`
+      }
+      mostrarNotificacao(mensagem, atribuicoes.length === clientesSelecionados.length ? "sucesso" : "aviso")
+
+      if (erros.length > 0) {
+        console.warn("Erros de atribuição:", erros)
+        setTimeout(() => {
+          mostrarNotificacao(`Falhas: ${erros.join("; ")}`, "erro")
+        }, 3000)
+      }
+    } else {
+      mostrarNotificacao(`Falha na atribuição: ${erros.join("; ")}`, "erro")
+    }
+
+    // Limpar seleções apenas se houve pelo menos uma atribuição bem-sucedida
+    if (atribuicoes.length > 0) {
+      clientesSelecionados = clientesSelecionados.filter(id => {
+        const cliente = clientes.find(c => c.id === id)
+        return cliente && !atribuicoes.includes(cliente.nome)
+      })
+
+      if (clientesSelecionados.length === 0) {
+        document.querySelectorAll(".cliente-checkbox").forEach(cb => cb.checked = false)
+        document.getElementById("selectAll").checked = false
+      }
+
+      atualizarCheckboxes()
+      filtrarClientes()
+      atualizarEstatisticas()
+    }
+
+  } catch (error) {
+    console.error("Erro geral na atribuição em massa:", error)
+    mostrarNotificacao("Erro ao atribuir clientes: " + error.message, "erro")
+  } finally {
+    if (btnSalvar) {
+      btnSalvar.disabled = false
+      btnSalvar.innerHTML = '<i class="fas fa-user-plus"></i> Atribuir Corretor'
+    }
+    mostrarCarregando(false)
+  }
+}
+
 function mostrarCarregando(show) {
   const modal = document.getElementById("modalCliente")
   const btn = modal?.querySelector(".btn-primary")
@@ -1150,8 +1332,13 @@ function mostrarCarregando(show) {
 
 function formatarData(data) {
   if (!data) return "-"
-  const d = new Date(data + 'T12:00:00')
-  return d.toLocaleDateString("pt-BR", { timeZone: 'America/Sao_Paulo' })
+  try {
+    const d = new Date(data + 'T12:00:00')
+    if (isNaN(d.getTime())) return "-" // Verifica se a data é válida
+    return d.toLocaleDateString("pt-BR", { timeZone: 'America/Sao_Paulo' })
+  } catch (error) {
+    return "-"
+  }
 }
 
 function formatarStatus(status) {
