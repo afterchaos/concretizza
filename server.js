@@ -257,19 +257,62 @@ async function initializeTables() {
 
     // Garantir que todas as colunas existam (migrações)
     try {
-      await dbQuery("ALTER TABLE clientes ADD COLUMN primeiro_contato TEXT")
-    } catch (e) {
-      if (!e.message?.includes("already exists") && !e.message?.includes("duplicate column")) {
-        console.log(`[${getDataSaoPaulo()}] Nota: Coluna primeiro_contato já existe ou erro ao adicionar:`, e.message)
-      }
-    }
+      // Verificar se as colunas existem antes de tentar criar
+      if (db.isPostgres) {
+        const columnsResult = await dbQuery(`
+          SELECT column_name
+          FROM information_schema.columns
+          WHERE table_name = 'clientes' AND column_name IN ('primeiro_contato', 'ultimo_contato')
+        `)
+        const existingColumns = columnsResult.rows.map(row => row.column_name)
 
-    try {
-      await dbQuery("ALTER TABLE clientes ADD COLUMN ultimo_contato TEXT")
-    } catch (e) {
-      if (!e.message?.includes("already exists") && !e.message?.includes("duplicate column")) {
-        console.log(`[${getDataSaoPaulo()}] Nota: Coluna ultimo_contato já existe ou erro ao adicionar:`, e.message)
+        if (!existingColumns.includes('primeiro_contato')) {
+          await dbQuery("ALTER TABLE clientes ADD COLUMN primeiro_contato TEXT")
+          console.log(`[${getDataSaoPaulo()}] ✓ Coluna primeiro_contato criada`)
+        } else {
+          console.log(`[${getDataSaoPaulo()}] ✓ Coluna primeiro_contato já existe`)
+        }
+
+        if (!existingColumns.includes('ultimo_contato')) {
+          await dbQuery("ALTER TABLE clientes ADD COLUMN ultimo_contato TEXT")
+          console.log(`[${getDataSaoPaulo()}] ✓ Coluna ultimo_contato criada`)
+        } else {
+          console.log(`[${getDataSaoPaulo()}] ✓ Coluna ultimo_contato já existe`)
+        }
+      } else {
+        // SQLite
+        try {
+          await dbQuery("ALTER TABLE clientes ADD COLUMN primeiro_contato TEXT")
+          console.log(`[${getDataSaoPaulo()}] ✓ Coluna primeiro_contato criada`)
+        } catch (e) {
+          if (e.message?.includes("duplicate column")) {
+            console.log(`[${getDataSaoPaulo()}] ✓ Coluna primeiro_contato já existe`)
+          }
+        }
+
+        try {
+          await dbQuery("ALTER TABLE clientes ADD COLUMN ultimo_contato TEXT")
+          console.log(`[${getDataSaoPaulo()}] ✓ Coluna ultimo_contato criada`)
+        } catch (e) {
+          if (e.message?.includes("duplicate column")) {
+            console.log(`[${getDataSaoPaulo()}] ✓ Coluna ultimo_contato já existe`)
+          }
+        }
       }
+
+      // Migração adicional: Verificar se há dados de contato existentes que precisam ser preservados
+      console.log(`[${getDataSaoPaulo()}] Verificando preservação de dados de contato existentes...`)
+      const clientesComDados = await dbQuery("SELECT id, nome, primeiro_contato, ultimo_contato FROM clientes WHERE primeiro_contato IS NOT NULL OR ultimo_contato IS NOT NULL LIMIT 5")
+      if (clientesComDados.rows && clientesComDados.rows.length > 0) {
+        console.log(`[${getDataSaoPaulo()}] ✓ Encontrados ${clientesComDados.rows.length} clientes com dados de contato preservados`)
+        clientesComDados.rows.forEach(cliente => {
+          console.log(`[${getDataSaoPaulo()}]   - ${cliente.nome}: primeiro_contato=${cliente.primeiro_contato || 'NULL'}, ultimo_contato=${cliente.ultimo_contato || 'NULL'}`)
+        })
+      } else {
+        console.log(`[${getDataSaoPaulo()}] ✓ Nenhum dado de contato existente encontrado (normal para bancos novos)`)
+      }
+    } catch (e) {
+      console.log(`[${getDataSaoPaulo()}] Nota: Erro na migração das colunas de contato:`, e.message)
     }
 
     // Adicionar colunas de contato para usuários (apenas admins e head-admins)
