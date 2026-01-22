@@ -253,6 +253,7 @@ async function initializeTables() {
         observacoes TEXT,
         data TEXT,
         usuario_id INTEGER REFERENCES usuarios(id),
+        ativo BOOLEAN DEFAULT TRUE,
         criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
@@ -353,18 +354,26 @@ async function initializeTables() {
 
     // Adicionar colunas de contato para usuários (apenas admins e head-admins)
     try {
-      await dbQuery("ALTER TABLE usuarios ADD COLUMN primeiro_contato TEXT")
+      await dbQuery("ALTER TABLE clientes ADD COLUMN primeiro_contato TEXT")
     } catch (e) {
       if (!e.message?.includes("already exists") && !e.message?.includes("duplicate column")) {
-        console.log(`[${getDataSaoPaulo()}] Nota: Coluna primeiro_contato já existe na tabela usuarios ou erro ao adicionar:`, e.message)
+        console.log(`[${getDataSaoPaulo()}] Nota: Coluna primeiro_contato já existe ou erro ao adicionar:`, e.message)
       }
     }
 
     try {
-      await dbQuery("ALTER TABLE usuarios ADD COLUMN ultimo_contato TEXT")
+      await dbQuery("ALTER TABLE clientes ADD COLUMN ultimo_contato TEXT")
     } catch (e) {
       if (!e.message?.includes("already exists") && !e.message?.includes("duplicate column")) {
-        console.log(`[${getDataSaoPaulo()}] Nota: Coluna ultimo_contato já existe na tabela usuarios ou erro ao adicionar:`, e.message)
+        console.log(`[${getDataSaoPaulo()}] Nota: Coluna ultimo_contato já existe ou erro ao adicionar:`, e.message)
+      }
+    }
+
+    try {
+      await dbQuery("ALTER TABLE clientes ADD COLUMN ativo BOOLEAN DEFAULT TRUE")
+    } catch (e) {
+      if (!e.message?.includes("already exists") && !e.message?.includes("duplicate column")) {
+        console.log(`[${getDataSaoPaulo()}] Nota: Coluna ativo já existe ou erro ao adicionar:`, e.message)
       }
     }
 
@@ -845,7 +854,7 @@ app.get("/api/clientes", autenticar, autorizar("admin", "head-admin", "corretor"
   let params = []
 
   if (isCorretor && !isAdmin) {
-    query += " WHERE c.usuario_id = $1 OR c.atribuido_a = $2"
+    query += " WHERE (c.usuario_id = $1 OR c.atribuido_a = $2) AND c.ativo = TRUE"
     params = [usuarioId, usuarioId]
   }
 
@@ -951,7 +960,7 @@ app.put(
   validarRequisicao,
   async (req, res) => {
     const { id } = req.params
-    const { nome, telefone, email, interesse, valor, status, observacoes, tags, ultimo_contato, primeiro_contato } = req.body
+    const { nome = null, telefone = null, email = null, interesse = null, valor = null, status = null, observacoes = null, tags = null, ultimo_contato = null, primeiro_contato = null } = req.body
     const cargos = req.usuario.cargo ? req.usuario.cargo.toLowerCase().split(',').map(c => c.trim()) : []
     const isCorretor = cargos.includes("corretor")
     const isAdmin = cargos.includes("admin") || cargos.includes("head-admin")
@@ -986,7 +995,7 @@ app.put(
 
           const result = await dbQuery(
             "UPDATE clientes SET ultimo_contato = $1, primeiro_contato = $2, atualizado_em = CURRENT_TIMESTAMP WHERE id = $3",
-            [ultimo_contato || null, primeiro_contato || null, id]
+            [ultimo_contato || null, primeiro_contato || null, id].map(p => p === null || p === undefined ? null : (typeof p === 'object' ? JSON.stringify(p) : String(p)))
           )
           if (result.rowCount === 0) return res.status(404).json({ error: "Cliente não encontrado" })
 
@@ -1004,15 +1013,44 @@ app.put(
           return res.status(403).json({ error: "Você não tem permissão para editar este cliente" })
         }
 
-        const result = await dbQuery(
-          "UPDATE clientes SET interesse = $1, status = $2, observacoes = $3, valor = $4, ultimo_contato = $5, primeiro_contato = $6, atualizado_em = CURRENT_TIMESTAMP WHERE id = $7",
-          [interesse || null, status || null, observacoes || null, valor || null, ultimo_contato || null, primeiro_contato || null, id]
-        )
+        // Verificar mudanças de status relacionadas à ativação/inativação
+        const deveInativar = status === "finalizado" && status !== statusAtual
+        const deveReativar = status !== "finalizado" && statusAtual === "finalizado"
+
+        // Garantir que todos os valores sejam null se undefined (SQLite não aceita undefined)
+        const safeInteresse = interesse !== undefined ? interesse : null
+        const safeStatus = status !== undefined ? status : null
+        const safeObservacoes = observacoes !== undefined ? observacoes : null
+        const safeValor = valor !== undefined ? valor : null
+        const safeUltimoContato = ultimo_contato !== undefined ? ultimo_contato : null
+        const safePrimeiroContato = primeiro_contato !== undefined ? primeiro_contato : null
+
+        let updateQuery = "UPDATE clientes SET interesse = $1, status = $2, observacoes = $3, valor = $4, ultimo_contato = $5, primeiro_contato = $6"
+        let params = [safeInteresse, safeStatus, safeObservacoes, safeValor, safeUltimoContato, safePrimeiroContato]
+
+        if (deveInativar) {
+          updateQuery += ", ativo = $7, atribuido_a = $8"
+          params.push(false, null)
+        } else if (deveReativar) {
+          // Quando reativar um cliente finalizado, atribuir ao corretor que está fazendo a edição
+          updateQuery += ", ativo = $7, atribuido_a = $8, data_atribuicao = $9"
+          params.push(true, req.usuario.id, getDataSaoPauloDate(new Date().toISOString()))
+        }
+
+        updateQuery += ", atualizado_em = CURRENT_TIMESTAMP WHERE id = $" + (params.length + 1)
+        params.push(id)
+
+        const result = await dbQuery(updateQuery, params.map(p => p === null || p === undefined ? null : (typeof p === 'object' ? JSON.stringify(p) : String(p))))
         if (result.rowCount === 0) return res.status(404).json({ error: "Cliente não encontrado" })
 
         // Log sempre que houver mudança de status (corretores)
         if (status !== undefined && status !== statusAtual) {
-          await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Status do cliente "${nomeCliente}" alterado de "${statusAtual || 'N/A'}" para "${status || 'N/A'}"`, nomeCliente, req)
+          const mensagemLog = deveReativar
+            ? `Status do cliente "${nomeCliente}" alterado para "${status}" (cliente reativado e atribuído ao corretor)`
+            : deveInativar
+            ? `Status do cliente "${nomeCliente}" alterado para "${status}" (cliente marcado como inativo e removido do corretor)`
+            : `Status do cliente "${nomeCliente}" alterado de "${statusAtual || 'N/A'}" para "${status || 'N/A'}"`
+          await registrarLog(req.usuario.id, "EDITAR", "Clientes", mensagemLog, nomeCliente, req)
         } else if (interesse !== undefined || observacoes !== undefined || valor !== undefined || ultimo_contato !== undefined) {
           await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Cliente atualizado (restrito): ${nomeCliente}`, nomeCliente, req)
         }
@@ -1020,10 +1058,25 @@ app.put(
         return res.json({ success: true, message: "Cliente atualizado com sucesso" })
       }
 
-      const result = await dbQuery(
-        "UPDATE clientes SET nome = $1, telefone = $2, email = $3, interesse = $4, valor = $5, status = $6, observacoes = $7, tags = $8, atualizado_em = CURRENT_TIMESTAMP WHERE id = $9",
-        [nome, telefone, email, interesse, valor, status, observacoes, tags, id]
-      )
+      // Verificar mudanças de status relacionadas à ativação/inativação
+      const deveInativar = status === "finalizado" && status !== statusAtual
+      const deveReativar = status !== "finalizado" && statusAtual === "finalizado"
+
+      let updateQuery = "UPDATE clientes SET nome = $1, telefone = $2, email = $3, interesse = $4, valor = $5, status = $6, observacoes = $7, tags = $8"
+      let params = [nome, telefone, email, interesse, valor, status, observacoes, tags]
+
+      if (deveInativar) {
+        updateQuery += ", ativo = $9, atribuido_a = $10"
+        params.push(false, null)
+      } else if (deveReativar) {
+        updateQuery += ", ativo = $9"
+        params.push(true)
+      }
+
+      updateQuery += ", atualizado_em = CURRENT_TIMESTAMP WHERE id = $" + (params.length + 1)
+      params.push(id)
+
+      const result = await dbQuery(updateQuery, params.map(p => p === null || p === undefined ? null : (typeof p === 'object' ? JSON.stringify(p) : String(p))))
       if (result.rowCount === 0) return res.status(404).json({ error: "Cliente não encontrado" })
 
       const nomeFinal = nome || nomeCliente
@@ -1124,7 +1177,7 @@ app.post(
       // Atualizar atribuição
       const dataAtribuicao = getDataSaoPauloDate(new Date().toISOString())
       const resultado = await dbQuery(
-        "UPDATE clientes SET atribuido_a = $1, data_atribuicao = $2, atualizado_em = CURRENT_TIMESTAMP WHERE id = $3",
+        "UPDATE clientes SET atribuido_a = $1, data_atribuicao = $2, ativo = TRUE, atualizado_em = CURRENT_TIMESTAMP WHERE id = $3",
         [parseInt(atribuido_a), dataAtribuicao, parseInt(id)]
       )
 

@@ -152,7 +152,7 @@
                         <option value="prioridade">Prioridade</option>
                         <option value="pré-atendido">Pré-Atendido</option>
                         <option value="em-atendimento">Em Atendimento</option>
-                        <option value="finalizado">Finalizado</option>
+                        <option value="finalizado">Inativo</option>
                     </select>
                     <select id="filterInteresse" class="select-input">
                         <option value="">Todos os interesses</option>
@@ -545,7 +545,7 @@
                             <option value="em-atendimento">Em Atendimento</option>
                             <option value="prioridade">Prioridade</option>
                             <option value="pré-atendido">Pré-Atendido</option>
-                            <option value="finalizado">Finalizado</option>
+                            <option value="finalizado">Inativo</option>
                         </select>
                     </div>
                     <div class="form-actions">
@@ -629,6 +629,31 @@
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de confirmação para marcar cliente como inativo -->
+    <div id="modalConfirmacaoInativo" class="modal">
+        <div class="modal-content modal-confirmation">
+            <div class="modal-header">
+                <h2>Confirmar Finalização</h2>
+                <button class="modal-close" id="closeConfirmacaoInativo">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="confirmation-content">
+                    <div class="confirmation-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <p>Tem certeza que deseja finalizar o atendimento do cliente <strong id="nomeClienteInativo">-</strong>?</p>
+                    <p class="confirmation-warning">O cliente será marcado como "Finalizado" e será removido da atribuição atual.</p>
+                </div>
+                <div class="confirmation-actions">
+                    <button class="btn-secondary" id="btnCancelarInativo">Cancelar</button>
+                    <button class="btn-primary" id="btnConfirmarInativo">
+                        <i class="fas fa-check"></i> Confirmar Finalização
+                    </button>
+                </div>
             </div>
         </div>
     </div>

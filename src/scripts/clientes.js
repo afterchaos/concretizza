@@ -266,16 +266,17 @@ function atualizarTabela() {
         (cliente) => {
           const podeEditarEste = (podeEditar && !isCorretor) || (isCorretor && (cliente.usuario_id === usuarioLogado.id || cliente.atribuido_a === usuarioLogado.id))
           const podeDeletarEste = podeDeletar && !isCorretor
-          
+          const nomeClasse = cliente.status === "finalizado" ? "cliente-inativo" : ""
+
           return `
       <tr onclick="abrirDetalhesCliente(${cliente.id})" style="cursor: pointer;">
         ${!isCorretor ? `<td onclick="event.stopPropagation();">
           <input type="checkbox" class="checkbox-input cliente-checkbox" data-id="${cliente.id}">
         </td>` : ""}
-        <td>${cliente.nome}</td>
+        <td class="${nomeClasse}">${cliente.nome}</td>
         <td>${cliente.telefone}</td>
         <td>${formatarInteresse(cliente.interesse)}</td>
-        <td><span class="badge badge-${cliente.status}">${formatarStatus(cliente.status)}</span></td>
+        <td><span class="badge ${cliente.status === 'finalizado' ? 'badge-finalizado' : 'badge-' + cliente.status}" style="${cliente.status === 'finalizado' ? 'background: rgba(255, 100, 100, 0.2); color: #ff6464; border: 1px solid rgba(255, 100, 100, 0.5);' : ''}">${formatarStatus(cliente.status)}</span></td>
         <td>${cliente.valor || "-"}</td>
         <td>${showLastContact ? formatarData(cliente.ultimo_contato) : formatarData(cliente.data_atribuicao)}</td>
         ${isAdminOrHead ? `<td>${cliente.cadastrado_por || "-"}</td>` : ""}
@@ -558,6 +559,32 @@ function configurarEventos() {
     })
   }
 
+  // Modal de confirmação para marcar cliente como inativo
+  const closeConfirmacaoInativo = document.getElementById("closeConfirmacaoInativo")
+  if (closeConfirmacaoInativo) {
+    closeConfirmacaoInativo.addEventListener("click", () => {
+      document.getElementById("modalConfirmacaoInativo").style.display = "none"
+    })
+  }
+
+  const btnCancelarInativo = document.getElementById("btnCancelarInativo")
+  if (btnCancelarInativo) {
+    btnCancelarInativo.addEventListener("click", () => {
+      document.getElementById("modalConfirmacaoInativo").style.display = "none"
+    })
+  }
+
+  const btnConfirmarInativo = document.getElementById("btnConfirmarInativo")
+  if (btnConfirmarInativo) {
+    btnConfirmarInativo.addEventListener("click", async () => {
+      document.getElementById("modalConfirmacaoInativo").style.display = "none"
+      if (window.pendingClienteSave) {
+        await executarSalvamentoCliente(window.pendingClienteSave)
+        window.pendingClienteSave = null
+      }
+    })
+  }
+
   // Modal bulk edit event listeners
   const closeEditarSelecionados = document.getElementById("closeEditarSelecionados")
   if (closeEditarSelecionados) {
@@ -686,27 +713,54 @@ async function salvarCliente(force = false) {
     return
   }
 
-  try {
-    const cliente = {
-      nome,
-      telefone,
-      email: email || null,
-      interesse,
-      valor: valor || null,
-      status,
-      tags: tags || null,
-      observacoes: observacoes || null,
-      data: new Date().toISOString().split("T")[0],
-      force: force // Adicionar flag de força se for para ignorar duplicatas
-    }
+  // Verificar se está finalizando um cliente e mostrar confirmação
+  if (clienteEmEdicao && status === "finalizado") {
+    const clienteExistente = clientes.find(c => c.id === clienteEmEdicao)
+    if (clienteExistente && clienteExistente.status !== "finalizado") {
+      // Mostrar modal de confirmação para finalizar atendimento
+      document.getElementById("nomeClienteInativo").textContent = nome
+      document.getElementById("modalConfirmacaoInativo").style.display = "flex"
 
+      // Armazenar dados do cliente para salvar após confirmação
+      window.pendingClienteSave = {
+        nome,
+        telefone,
+        email: email || null,
+        interesse,
+        valor: valor || null,
+        status,
+        tags: tags || null,
+        observacoes: observacoes || null,
+        data: new Date().toISOString().split("T")[0],
+        force: force
+      }
+      return
+    }
+  }
+
+  await executarSalvamentoCliente({
+    nome,
+    telefone,
+    email: email || null,
+    interesse,
+    valor: valor || null,
+    status,
+    tags: tags || null,
+    observacoes: observacoes || null,
+    data: new Date().toISOString().split("T")[0],
+    force: force
+  })
+}
+
+async function executarSalvamentoCliente(cliente) {
+  try {
     mostrarCarregando(true)
 
     const usuario = obterUsuarioLogado()
 
     if (clienteEmEdicao) {
       await atualizarCliente(clienteEmEdicao, cliente)
-      registrarLog("EDITAR", "CLIENTES", `Cliente "${nome}" atualizado`, nome)
+      registrarLog("EDITAR", "CLIENTES", `Cliente "${cliente.nome}" atualizado`, cliente.nome)
       mostrarNotificacao("Cliente atualizado com sucesso!", "sucesso")
 
       // Atualizar cliente no array local para preservar filtros
@@ -714,6 +768,14 @@ async function salvarCliente(force = false) {
       if (clienteIndex !== -1) {
         // Manter campos que não são editáveis por corretores ou que vêm da API
         const clienteExistente = clientes[clienteIndex]
+
+        // Verificar mudanças de status relacionadas à ativação/inativação
+        const deveDesatribuir = cliente.status === "finalizado" && clienteExistente.status !== "finalizado"
+        const deveReativar = cliente.status !== "finalizado" && clienteExistente.status === "finalizado"
+
+        const usuarioLogado = obterUsuarioLogado()
+        const isCorretor = usuarioLogado && getCargosAsArray(usuarioLogado.cargo).some(c => c.toLowerCase().includes('corretor')) && !isAdminOrHeadAdmin()
+
         clientes[clienteIndex] = {
           ...clienteExistente,
           ...cliente,
@@ -722,8 +784,10 @@ async function salvarCliente(force = false) {
           criado_em: clienteExistente.criado_em,
           atualizado_em: new Date().toISOString(),
           cadastrado_por: clienteExistente.cadastrado_por,
-          atribuido_a: clienteExistente.atribuido_a,
-          atribuido_a_nome: clienteExistente.atribuido_a_nome
+          // Se foi finalizado, remover atribuição; se foi reativado, atribuir ao corretor logado apenas se for corretor
+          atribuido_a: deveDesatribuir ? null : (deveReativar && isCorretor ? usuarioLogado.id : clienteExistente.atribuido_a),
+          atribuido_a_nome: deveDesatribuir ? null : (deveReativar && isCorretor ? usuarioLogado.nome : clienteExistente.atribuido_a_nome),
+          data_atribuicao: deveDesatribuir ? null : (deveReativar && isCorretor ? new Date().toISOString().split("T")[0] : clienteExistente.data_atribuicao)
         }
 
         // Reaplicar filtros atuais sem recarregar dados
@@ -738,7 +802,7 @@ async function salvarCliente(force = false) {
         return
       }
 
-      registrarLog("CRIAR", "CLIENTES", `Novo cliente "${nome}" criado`, nome)
+      registrarLog("CRIAR", "CLIENTES", `Novo cliente "${cliente.nome}" criado`, cliente.nome)
       mostrarNotificacao("Cliente criado com sucesso!", "sucesso")
 
       // Para criação de cliente, ainda precisamos recarregar para obter o ID correto
@@ -1256,10 +1320,18 @@ async function salvarEdicaoEmMassa() {
           // Atualizar no array local
           const clienteIndex = clientes.findIndex(c => c.id === id)
           if (clienteIndex !== -1) {
+            const deveDesatribuir = novoStatus === "finalizado" && clientes[clienteIndex].status !== "finalizado"
+            const deveReativar = novoStatus !== "finalizado" && clientes[clienteIndex].status === "finalizado"
+            const usuarioLogado = obterUsuarioLogado()
+            const isCorretor = usuarioLogado && getCargosAsArray(usuarioLogado.cargo).some(c => c.toLowerCase().includes('corretor')) && !isAdminOrHeadAdmin()
             clientes[clienteIndex] = {
               ...clientes[clienteIndex],
               status: novoStatus,
-              atualizado_em: new Date().toISOString()
+              atualizado_em: new Date().toISOString(),
+              // Se foi finalizado, remover atribuição; se foi reativado, atribuir ao corretor logado apenas se for corretor
+              atribuido_a: deveDesatribuir ? null : (deveReativar && isCorretor ? usuarioLogado.id : clientes[clienteIndex].atribuido_a),
+              atribuido_a_nome: deveDesatribuir ? null : (deveReativar && isCorretor ? usuarioLogado.nome : clientes[clienteIndex].atribuido_a_nome),
+              data_atribuicao: deveDesatribuir ? null : (deveReativar && isCorretor ? new Date().toISOString().split("T")[0] : clientes[clienteIndex].data_atribuicao)
             }
           }
 
@@ -1437,8 +1509,8 @@ async function salvarAtribuicaoEmMassa() {
       }
 
       atualizarCheckboxes()
-      filtrarClientes()
-      atualizarEstatisticas()
+      // Recarregar clientes para atualizar a lista imediatamente
+      await carregarClientes()
     }
 
   } catch (error) {
@@ -1479,7 +1551,7 @@ function formatarStatus(status) {
     "em-atendimento": "Em Atendimento",
     prioridade: "Prioridade",
     "pré-atendido": "Pré-Atendido",
-    finalizado: "Finalizado"
+    finalizado: "Inativo"
   }
   return map[status] || status
 }

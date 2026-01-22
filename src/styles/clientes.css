@@ -466,8 +466,9 @@ body {
 }
 
 .badge-finalizado {
-  background-color: rgba(100, 200, 100, 0.2);
-  color: #64c864;
+  background: #ff6464;
+  color: #ffffff;
+  border: 1px solid #ff6464;
 }
 
 /* ===== TAGS ===== */
@@ -2145,6 +2146,12 @@ body {
   .bulk-client-item {
     font-size: 0.8125rem;
   }
+}
+
+/* ===== CLIENTES INATIVOS ===== */
+.cliente-inativo {
+  color: #ff6464 !important;
+  font-weight: 600;
 }
 
 /* Responsive date inputs */
