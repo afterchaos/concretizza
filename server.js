@@ -184,6 +184,42 @@ function getDataSaoPauloDate(dateString) {
   }
 }
 
+// ===== FUNÇÃO PARA DETECTAR DUPLICATAS DE CLIENTES =====
+async function detectarDuplicatasCliente(nome, telefone, email = null) {
+  try {
+    // Normalizar telefone para comparação (apenas números)
+    const telefoneNormalizado = telefone?.trim().replace(/[^\d]/g, '')
+
+    console.log(`[${getDataSaoPaulo()}] [DUPLICATAS] Verificando duplicatas para telefone: "${telefone}" -> normalizado: "${telefoneNormalizado}"`)
+
+    // Buscar apenas por telefone exato (único critério de duplicata)
+    if (telefoneNormalizado && telefoneNormalizado.length >= 7) {
+      // Usar uma abordagem simplificada: buscar todos os clientes e filtrar
+    const result = await dbQuery("SELECT id, nome, telefone FROM clientes", [])
+
+    console.log(`[${getDataSaoPaulo()}] [DUPLICATAS] Buscou ${result.rows.length} clientes do banco para verificar "${telefone}" -> "${telefoneNormalizado}"`)
+
+    // Filtrar no JavaScript após buscar todos os registros
+    const duplicatas = result.rows.filter(cliente => {
+      const telefoneClienteNormalizado = cliente.telefone?.trim().replace(/[^\d]/g, '')
+      const isDuplicata = telefoneClienteNormalizado === telefoneNormalizado
+      if (isDuplicata) {
+        console.log(`[${getDataSaoPaulo()}] [DUPLICATAS] DUPLICATA ENCONTRADA: Cliente "${cliente.nome}" (ID: ${cliente.id}) - "${cliente.telefone}" normaliza para "${telefoneClienteNormalizado}"`)
+      }
+      return isDuplicata
+    })
+
+    console.log(`[${getDataSaoPaulo()}] [DUPLICATAS] Total de duplicatas encontradas: ${duplicatas.length}`)
+    return duplicatas
+    }
+
+    return []
+  } catch (error) {
+    console.error(`[${getDataSaoPaulo()}] [DUPLICATAS] Erro ao detectar duplicatas:`, error)
+    return []
+  }
+}
+
 // ===== CRIAR TABELAS =====
 async function initializeTables() {
   try {
@@ -838,7 +874,7 @@ app.post(
   ],
   validarRequisicao,
   async (req, res) => {
-    const { nome, telefone, email, interesse, valor, status, observacoes, data, tags } = req.body
+    const { nome, telefone, email, interesse, valor, status, observacoes, data, tags, force } = req.body
     const usuarioResponsavel = req.usuario.id
     const dataCliente = data || new Date().toISOString().split("T")[0]
 
@@ -853,7 +889,42 @@ app.post(
     console.log(`[${getDataSaoPaulo()}] [CLIENTES] Criando novo cliente:`, { nome, telefone, email, interesse, valor, status, observacoes, data: dataCliente, usuarioResponsavel, atribuidoA, dataAtribuicao, tags })
 
     try {
-      const result = await dbQuery(
+      // Verificar duplicatas antes de criar - implementação inline para debug
+      console.log(`[${getDataSaoPaulo()}] [CLIENTES] Verificando duplicatas para telefone: "${telefone}"`)
+
+      // Normalizar telefone para comparação (apenas números)
+      const telefoneNormalizado = telefone?.trim().replace(/[^\d]/g, '')
+      console.log(`[${getDataSaoPaulo()}] [CLIENTES] Telefone normalizado: "${telefoneNormalizado}"`)
+
+      // Buscar todos os clientes e filtrar no JavaScript
+      const result = await dbQuery("SELECT id, nome, telefone FROM clientes", [])
+      console.log(`[${getDataSaoPaulo()}] [CLIENTES] Buscou ${result.rows.length} clientes do banco`)
+
+      // Filtrar duplicatas
+      const duplicatas = result.rows.filter(cliente => {
+        const telefoneClienteNormalizado = cliente.telefone?.trim().replace(/[^\d]/g, '')
+        const isDuplicata = telefoneClienteNormalizado === telefoneNormalizado
+        console.log(`[${getDataSaoPaulo()}] [CLIENTES] Comparando "${telefoneClienteNormalizado}" == "${telefoneNormalizado}" ? ${isDuplicata}`)
+        return isDuplicata
+      })
+
+      console.log(`[${getDataSaoPaulo()}] [CLIENTES] Total de duplicatas encontradas: ${duplicatas.length}`)
+
+      if (duplicatas && duplicatas.length > 0) {
+        console.log(`[${getDataSaoPaulo()}] [DUPLICATAS] Possíveis duplicatas encontradas para "${nome}":`, duplicatas.length)
+        console.log(`[${getDataSaoPaulo()}] [DUPLICATAS] Duplicatas:`, duplicatas.map(d => ({ id: d.id, nome: d.nome, telefone: d.telefone })))
+
+        return res.status(409).json({
+          error: "Cliente duplicado",
+          message: "Já existe um cliente cadastrado com este número de telefone. Não é permitido cadastrar clientes duplicados.",
+          duplicatas: duplicatas.slice(0, 5), // Limitar a 5 resultados
+          allowForce: false
+        })
+      }
+
+      console.log(`[${getDataSaoPaulo()}] [CLIENTES] Nenhuma duplicata encontrada, prosseguindo com criação...`)
+
+      const insertResult = await dbQuery(
         "INSERT INTO clientes (nome, telefone, email, interesse, valor, status, observacoes, data, usuario_id, atribuido_a, data_atribuicao, tags) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
         [nome, telefone, email || null, interesse, valor || null, status, observacoes || null, dataCliente, usuarioResponsavel, atribuidoA, dataAtribuicao, tags || null]
       )
@@ -934,15 +1005,15 @@ app.put(
         }
 
         const result = await dbQuery(
-          "UPDATE clientes SET interesse = $1, status = $2, observacoes = $3, ultimo_contato = $4, primeiro_contato = $5, atualizado_em = CURRENT_TIMESTAMP WHERE id = $6",
-          [interesse || null, status || null, observacoes || null, ultimo_contato || null, primeiro_contato || null, id]
+          "UPDATE clientes SET interesse = $1, status = $2, observacoes = $3, valor = $4, ultimo_contato = $5, primeiro_contato = $6, atualizado_em = CURRENT_TIMESTAMP WHERE id = $7",
+          [interesse || null, status || null, observacoes || null, valor || null, ultimo_contato || null, primeiro_contato || null, id]
         )
         if (result.rowCount === 0) return res.status(404).json({ error: "Cliente não encontrado" })
 
         // Log sempre que houver mudança de status (corretores)
         if (status !== undefined && status !== statusAtual) {
           await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Status do cliente "${nomeCliente}" alterado de "${statusAtual || 'N/A'}" para "${status || 'N/A'}"`, nomeCliente, req)
-        } else if (interesse !== undefined || observacoes !== undefined || ultimo_contato !== undefined) {
+        } else if (interesse !== undefined || observacoes !== undefined || valor !== undefined || ultimo_contato !== undefined) {
           await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Cliente atualizado (restrito): ${nomeCliente}`, nomeCliente, req)
         }
 

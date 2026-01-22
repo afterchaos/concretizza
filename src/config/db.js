@@ -31,7 +31,7 @@ function initSQLite() {
         try {
           const convertedSQL = convertSQLiteSQL(sql)
           const isMutating = /^(INSERT|UPDATE|DELETE|CREATE|DROP|ALTER)/i.test(sql.trim())
-          
+
           if (isMutating) {
             const stmt = sqlite.prepare(convertedSQL)
             let result
@@ -55,6 +55,25 @@ function initSQLite() {
           reject(err)
         }
       })
+    },
+    // Add a method to get the first row or null
+    get: (sql, params, callback) => {
+      if (typeof params === 'function') {
+        callback = params
+        params = []
+      }
+      try {
+        const stmt = sqlite.prepare(convertSQLiteSQL(sql))
+        let result
+        if (params && params.length > 0) {
+          result = stmt.get(...params)
+        } else {
+          result = stmt.get()
+        }
+        if (callback) callback(null, result)
+      } catch (err) {
+        if (callback) callback(err)
+      }
     },
     run: (sql, params, callback) => {
       if (typeof params === 'function') {

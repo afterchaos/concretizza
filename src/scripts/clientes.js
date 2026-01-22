@@ -671,7 +671,7 @@ function filtrarClientes() {
   atualizarTabela()
 }
 
-async function salvarCliente() {
+async function salvarCliente(force = false) {
   const nome = document.getElementById("clienteNome").value.trim()
   const telefone = document.getElementById("clienteTelefone").value.trim()
   const email = document.getElementById("clienteEmail").value.trim()
@@ -696,7 +696,8 @@ async function salvarCliente() {
       status,
       tags: tags || null,
       observacoes: observacoes || null,
-      data: new Date().toISOString().split("T")[0]
+      data: new Date().toISOString().split("T")[0],
+      force: force // Adicionar flag de força se for para ignorar duplicatas
     }
 
     mostrarCarregando(true)
@@ -729,7 +730,14 @@ async function salvarCliente() {
         filtrarClientes()
       }
     } else {
-      await criarCliente(cliente)
+      const resultado = await criarCliente(cliente)
+
+      // Verificar se há duplicatas detectadas
+      if (resultado && resultado.error === "Cliente duplicado") {
+        mostrarModalDuplicatas(resultado.duplicatas, cliente, resultado.allowForce)
+        return
+      }
+
       registrarLog("CRIAR", "CLIENTES", `Novo cliente "${nome}" criado`, nome)
       mostrarNotificacao("Cliente criado com sucesso!", "sucesso")
 
@@ -771,9 +779,9 @@ function editarCliente(id) {
   }
   document.getElementById("clienteObservacoes").value = cliente.observacoes || ""
 
-  // Para corretores: mostrar apenas o campo de observações
+  // Para corretores: ocultar apenas alguns campos, permitir edição de valor
   if (isCorretor) {
-    const camposParaOcultar = ["clienteNome", "clienteTelefone", "clienteEmail", "clienteValor"]
+    const camposParaOcultar = ["clienteNome", "clienteTelefone", "clienteEmail"]
     camposParaOcultar.forEach(campoId => {
       const el = document.getElementById(campoId)
       if (el) {
@@ -785,17 +793,20 @@ function editarCliente(id) {
       }
     })
 
-    // Mostrar e habilitar apenas o campo de observações
-    const campoObservacoes = document.getElementById("clienteObservacoes")
-    if (campoObservacoes) {
-      const formGroup = campoObservacoes.closest('.form-group')
-      if (formGroup) {
-        formGroup.style.display = ""
+    // Mostrar e habilitar campo de valor e observações para corretores
+    const camposParaMostrar = ["clienteValor", "clienteObservacoes"]
+    camposParaMostrar.forEach(campoId => {
+      const el = document.getElementById(campoId)
+      if (el) {
+        const formGroup = el.closest('.form-group')
+        if (formGroup) {
+          formGroup.style.display = ""
+        }
+        el.disabled = false
+        el.style.backgroundColor = ""
+        el.style.cursor = ""
       }
-      campoObservacoes.disabled = false
-      campoObservacoes.style.backgroundColor = ""
-      campoObservacoes.style.cursor = ""
-    }
+    })
   } else {
     // Para admins: mostrar todos os campos
     const todosCampos = ["clienteNome", "clienteTelefone", "clienteEmail", "clienteValor", "clienteObservacoes"]
@@ -1696,4 +1707,108 @@ async function abrirHistoricoStatus(clienteId) {
 function formatarDataHora(dataString) {
   // O servidor já retorna as datas formatadas no timezone correto
   return dataString || "-"
+}
+
+// Função para mostrar modal de duplicatas
+function mostrarModalDuplicatas(duplicatas, cliente, allowForce = false) {
+  // Criar modal de duplicatas se não existir
+  let modalDuplicatas = document.getElementById("modalDuplicatas")
+  if (!modalDuplicatas) {
+    modalDuplicatas = document.createElement("div")
+    modalDuplicatas.id = "modalDuplicatas"
+    modalDuplicatas.className = "modal modal-duplicatas"
+    modalDuplicatas.innerHTML = `
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Cliente Duplicado</h3>
+          <span class="modal-close-btn" id="closeModalDuplicatas">&times;</span>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger" id="alertMensagem">
+            Já existe um cliente cadastrado com este número de telefone. Não é permitido cadastrar clientes duplicados.
+          </div>
+
+          <div class="cliente-info">
+            <h4>Cliente que tentou cadastrar:</h4>
+            <div class="cliente-card novo-cliente">
+              <div class="cliente-header">
+                <strong>${cliente.nome}</strong>
+                <span class="badge badge-${cliente.status || 'novo'}">${formatarStatus(cliente.status || 'novo')}</span>
+              </div>
+              <div class="cliente-details">
+                <span><i class="fas fa-phone"></i> ${cliente.telefone}</span>
+                ${cliente.email ? `<span><i class="fas fa-envelope"></i> ${cliente.email}</span>` : ''}
+                <span><i class="fas fa-tag"></i> ${formatarInteresse(cliente.interesse)}</span>
+                ${cliente.valor ? `<span><i class="fas fa-dollar-sign"></i> R$ ${cliente.valor}</span>` : ''}
+              </div>
+            </div>
+          </div>
+
+          <div class="duplicatas-list">
+            <h4>Cliente(s) já cadastrado(s) com este telefone:</h4>
+            <div id="duplicatasContainer"></div>
+          </div>
+
+          <div class="modal-actions" id="modalActions">
+            <button type="button" class="btn btn-secondary" id="btnFecharDuplicata">
+              <i class="fas fa-times"></i> Fechar
+            </button>
+          </div>
+        </div>
+      </div>
+    `
+    document.body.appendChild(modalDuplicatas)
+
+    // Event listeners
+    document.getElementById("closeModalDuplicatas").addEventListener("click", () => {
+      modalDuplicatas.style.display = "none"
+    })
+
+    document.getElementById("btnFecharDuplicata").addEventListener("click", () => {
+      modalDuplicatas.style.display = "none"
+    })
+  } else {
+    // Atualizar conteúdo dinâmico se o modal já existe
+    const header = modalDuplicatas.querySelector('.modal-header h3')
+    header.innerHTML = `Cliente Duplicado`
+
+    const alert = modalDuplicatas.querySelector('#alertMensagem')
+    alert.innerHTML = `Já existe um cliente cadastrado com este número de telefone. Não é permitido cadastrar clientes duplicados.`
+
+    const clienteCard = modalDuplicatas.querySelector('.cliente-card.novo-cliente')
+    clienteCard.innerHTML = `
+      <div class="cliente-header">
+        <strong>${cliente.nome}</strong>
+        <span class="badge badge-${cliente.status || 'novo'}">${formatarStatus(cliente.status || 'novo')}</span>
+      </div>
+      <div class="cliente-details">
+        <span><i class="fas fa-phone"></i> ${cliente.telefone}</span>
+        ${cliente.email ? `<span><i class="fas fa-envelope"></i> ${cliente.email}</span>` : ''}
+        <span><i class="fas fa-tag"></i> ${formatarInteresse(cliente.interesse)}</span>
+        ${cliente.valor ? `<span><i class="fas fa-dollar-sign"></i> R$ ${cliente.valor}</span>` : ''}
+      </div>
+    `
+  }
+
+  // Preencher lista de duplicatas
+  const container = document.getElementById("duplicatasContainer")
+  container.innerHTML = duplicatas.map((duplicata, index) => `
+    <div class="cliente-card duplicata">
+      <div class="cliente-header">
+        <strong>${duplicata.nome}</strong>
+        <span class="badge badge-${duplicata.status}">${formatarStatus(duplicata.status)}</span>
+      </div>
+      <div class="cliente-details">
+        <span><i class="fas fa-phone"></i> ${duplicata.telefone}</span>
+        ${duplicata.email ? `<span><i class="fas fa-envelope"></i> ${duplicata.email}</span>` : ''}
+        <span><i class="fas fa-tag"></i> ${formatarInteresse(duplicata.interesse)}</span>
+        ${duplicata.valor ? `<span><i class="fas fa-dollar-sign"></i> R$ ${duplicata.valor}</span>` : ''}
+        ${duplicata.cadastrado_por ? `<span><i class="fas fa-user"></i> Por: ${duplicata.cadastrado_por}</span>` : ''}
+        ${duplicata.atribuido_a_nome ? `<span><i class="fas fa-user-tag"></i> Atribuído a: ${duplicata.atribuido_a_nome}</span>` : ''}
+      </div>
+    </div>
+  `).join("")
+
+  // Mostrar modal
+  modalDuplicatas.style.display = "flex"
 }

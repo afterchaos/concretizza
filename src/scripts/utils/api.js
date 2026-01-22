@@ -87,10 +87,75 @@ async function obterClientes() {
 }
 
 async function criarCliente(cliente) {
-  return fazerRequisicao("/api/clientes", {
-    method: "POST",
-    body: JSON.stringify(cliente)
-  })
+  const token = obterToken()
+
+  if (!token) {
+    localStorage.removeItem("usuarioLogado")
+    window.location.href = "/"
+    return null
+  }
+
+  const headers = {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${token}`
+  }
+
+  try {
+    const response = await fetch("/api/clientes", {
+      method: "POST",
+      headers,
+      body: JSON.stringify(cliente)
+    })
+
+    console.log(`[API] POST /api/clientes - Status: ${response.status}`)
+
+    if (response.status === 429) {
+      console.error("[API] Erro 429 - Muitas requisições (rate limit)")
+      throw new Error("Muitas requisições. Tente novamente em alguns segundos.")
+    }
+
+    if (response.status === 401) {
+      const responseData = await response.json().catch(() => ({}))
+      console.error(`[API] Erro ${response.status} - ${responseData.error || 'Token inválido'}`)
+      localStorage.removeItem("token")
+      localStorage.removeItem("usuarioLogado")
+      window.location.href = "/"
+      return null
+    }
+
+    if (response.status === 403) {
+      const responseData = await response.json().catch(() => ({}))
+      console.error(`[API] Erro ${response.status} - ${responseData.error || 'Permissão negada'}`)
+      throw new Error(responseData.error || "Permissão negada")
+    }
+
+    const contentType = response.headers.get("content-type")
+    let data
+
+    if (contentType && contentType.includes("application/json")) {
+      data = await response.json()
+    } else {
+      const text = await response.text()
+      console.warn("[API] Resposta não é JSON:", text.substring(0, 100))
+      data = { error: text || "Erro desconhecido" }
+    }
+
+    if (response.status === 409) {
+      // Retornar os dados de duplicata sem lançar erro
+      console.log("[API] Duplicatas detectadas:", data)
+      return data
+    }
+
+    if (!response.ok) {
+      console.error(`[API] Erro na resposta:`, data)
+      throw new Error(data.error || "Erro na requisição")
+    }
+
+    return data
+  } catch (error) {
+    console.error("[API] Erro na requisição:", error)
+    throw error
+  }
 }
 
 async function atualizarCliente(id, cliente) {
