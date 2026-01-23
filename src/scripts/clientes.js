@@ -49,6 +49,7 @@ let clienteParaVer = null
 let clientesSelecionados = []
 let corretores = []
 let currentSortIndex = 0
+let clienteOriginalData = null // Store original client data for comparison
 let sortOptions = [
   {value: "", label: "Padrão"},
   {value: "nome", label: "Alfabética"},
@@ -351,14 +352,14 @@ function configurarEventos() {
       formCliente.reset()
       
       // Reabilitar todos os campos e mostrar form-groups
-      const camposRestritos = ["clienteNome", "clienteTelefone", "clienteEmail", "clienteValor", "clienteObservacoes"]
+      const camposRestritos = ["clienteNome", "clienteTelefone", "clienteEmail", "clienteValor", "clienteObservacoes", "clientePrimeiroContato", "clienteUltimoContato"]
       camposRestritos.forEach(campoId => {
         const el = document.getElementById(campoId)
         if (el) {
           el.disabled = false
           el.style.backgroundColor = ""
           el.style.cursor = ""
-          
+
           const formGroup = el.closest('.form-group')
           if (formGroup) {
             formGroup.style.display = ""
@@ -706,6 +707,8 @@ async function salvarCliente(force = false) {
   const valor = document.getElementById("clienteValor").value.trim()
   const status = document.getElementById("clienteStatus").value
   const tags = document.getElementById("clienteTags") ? document.getElementById("clienteTags").value.trim() : null
+  const primeiro_contato = document.getElementById("clientePrimeiroContato").value.trim()
+  const ultimo_contato = document.getElementById("clienteUltimoContato").value.trim()
   const observacoes = document.getElementById("clienteObservacoes").value.trim()
 
   if (!nome || !telefone || !interesse || !status) {
@@ -713,32 +716,8 @@ async function salvarCliente(force = false) {
     return
   }
 
-  // Verificar se está finalizando um cliente e mostrar confirmação
-  if (clienteEmEdicao && status === "finalizado") {
-    const clienteExistente = clientes.find(c => c.id === clienteEmEdicao)
-    if (clienteExistente && clienteExistente.status !== "finalizado") {
-      // Mostrar modal de confirmação para finalizar atendimento
-      document.getElementById("nomeClienteInativo").textContent = nome
-      document.getElementById("modalConfirmacaoInativo").style.display = "flex"
-
-      // Armazenar dados do cliente para salvar após confirmação
-      window.pendingClienteSave = {
-        nome,
-        telefone,
-        email: email || null,
-        interesse,
-        valor: valor || null,
-        status,
-        tags: tags || null,
-        observacoes: observacoes || null,
-        data: new Date().toISOString().split("T")[0],
-        force: force
-      }
-      return
-    }
-  }
-
-  await executarSalvamentoCliente({
+  // For editing, only include date fields that have actually changed
+  let clienteData = {
     nome,
     telefone,
     email: email || null,
@@ -749,7 +728,27 @@ async function salvarCliente(force = false) {
     observacoes: observacoes || null,
     data: new Date().toISOString().split("T")[0],
     force: force
-  })
+  }
+
+  // Always include date fields for both creation and editing to preserve existing values
+  clienteData.primeiro_contato = primeiro_contato || null
+  clienteData.ultimo_contato = ultimo_contato || null
+
+  // Verificar se está finalizando um cliente e mostrar confirmação
+  if (clienteEmEdicao && status === "finalizado") {
+    const clienteExistente = clientes.find(c => c.id === clienteEmEdicao)
+    if (clienteExistente && clienteExistente.status !== "finalizado") {
+      // Mostrar modal de confirmação para finalizar atendimento
+      document.getElementById("nomeClienteInativo").textContent = nome
+      document.getElementById("modalConfirmacaoInativo").style.display = "flex"
+
+      // Armazenar dados do cliente para salvar após confirmação
+      window.pendingClienteSave = clienteData
+      return
+    }
+  }
+
+  await executarSalvamentoCliente(clienteData)
 }
 
 async function executarSalvamentoCliente(cliente) {
@@ -759,6 +758,9 @@ async function executarSalvamentoCliente(cliente) {
     const usuario = obterUsuarioLogado()
 
     if (clienteEmEdicao) {
+      // Para edições, as datas são sempre enviadas como estão
+      // Se vazias, serão tratadas como null no servidor
+
       await atualizarCliente(clienteEmEdicao, cliente)
       registrarLog("EDITAR", "CLIENTES", `Cliente "${cliente.nome}" atualizado`, cliente.nome)
       mostrarNotificacao("Cliente atualizado com sucesso!", "sucesso")
@@ -786,9 +788,9 @@ async function executarSalvamentoCliente(cliente) {
             valor: cliente.valor !== undefined && cliente.valor !== null && cliente.valor !== "" ? cliente.valor : clienteExistente.valor,
             observacoes: cliente.observacoes !== undefined ? cliente.observacoes : clienteExistente.observacoes,
             status: cliente.status !== undefined ? cliente.status : clienteExistente.status,
-            // Campos de contato que podem ser atualizados
-            ultimo_contato: cliente.ultimo_contato !== undefined ? cliente.ultimo_contato : clienteExistente.ultimo_contato,
-            primeiro_contato: cliente.primeiro_contato !== undefined ? cliente.primeiro_contato : clienteExistente.primeiro_contato,
+            // Campos de contato que podem ser atualizados apenas se foram enviados
+            ...(cliente.primeiro_contato !== undefined && { primeiro_contato: cliente.primeiro_contato }),
+            ...(cliente.ultimo_contato !== undefined && { ultimo_contato: cliente.ultimo_contato }),
             // Garantir que campos do sistema sejam preservados
             usuario_id: clienteExistente.usuario_id,
             criado_em: clienteExistente.criado_em,
@@ -856,26 +858,65 @@ function editarCliente(id) {
   const usuarioLogado = obterUsuarioLogado()
   const cargos = getCargosAsArray(usuarioLogado?.cargo).map(c => c.toLowerCase()) || []
   const isCorretor = cargos.includes('corretor') && !cargos.includes('admin') && !cargos.includes('head-admin')
-  
-  if (isCorretor && cliente.usuario_id !== usuarioLogado.id && cliente.atribuido_a !== usuarioLogado.id) {
+
+  if (isCorretor && parseInt(cliente.usuario_id) !== parseInt(usuarioLogado.id) && (cliente.atribuido_a === null || cliente.atribuido_a === undefined || parseInt(cliente.atribuido_a) !== parseInt(usuarioLogado.id))) {
     mostrarNotificacao("Você não tem permissão para editar este cliente", "erro")
     return
   }
 
   clienteEmEdicao = id
-  document.getElementById("modalTitle").textContent = "Editar Cliente"
-  document.getElementById("clienteNome").value = cliente.nome
-  document.getElementById("clienteTelefone").value = cliente.telefone
-  document.getElementById("clienteEmail").value = cliente.email || ""
-  document.getElementById("clienteInteresse").value = cliente.interesse
-  document.getElementById("clienteValor").value = cliente.valor || ""
-  document.getElementById("clienteStatus").value = cliente.status
-  if (document.getElementById("clienteTags")) {
-    document.getElementById("clienteTags").value = cliente.tags || ""
+  // Store original client data for comparison
+  clienteOriginalData = {
+    primeiro_contato: cliente.primeiro_contato || null,
+    ultimo_contato: cliente.ultimo_contato || null
   }
-  document.getElementById("clienteObservacoes").value = cliente.observacoes || ""
 
-  // Para corretores: ocultar apenas alguns campos, permitir edição de valor
+  document.getElementById("modalTitle").textContent = "Editar Cliente"
+
+  // Mostrar modal primeiro
+  document.getElementById("modalCliente").style.display = "flex"
+
+  // Aguardar um ciclo de renderização para garantir que o modal esteja totalmente visível
+  requestAnimationFrame(() => {
+    // Resetar formulário para limpar valores anteriores
+    document.getElementById("formCliente").reset()
+
+    // Preencher campos do formulário
+    document.getElementById("clienteNome").value = cliente.nome
+    document.getElementById("clienteTelefone").value = cliente.telefone
+    document.getElementById("clienteEmail").value = cliente.email || ""
+
+    // Definir valores dos selects com verificação adicional
+    const interesseSelect = document.getElementById("clienteInteresse")
+    if (interesseSelect) {
+      // Garantir que o valor seja válido
+      const interesseValue = cliente.interesse || "alugar"
+      interesseSelect.value = interesseValue
+      console.log("Definindo interesse:", interesseValue, "cliente.interesse:", cliente.interesse)
+      // Disparar evento change manualmente para garantir que o valor seja aplicado
+      interesseSelect.dispatchEvent(new Event('change', { bubbles: true }))
+    }
+
+    const statusSelect = document.getElementById("clienteStatus")
+    if (statusSelect) {
+      // Garantir que o valor seja válido
+      const statusValue = cliente.status || "novo"
+      statusSelect.value = statusValue
+      console.log("Definindo status:", statusValue, "cliente.status:", cliente.status)
+      // Disparar evento change manualmente para garantir que o valor seja aplicado
+      statusSelect.dispatchEvent(new Event('change', { bubbles: true }))
+    }
+
+    document.getElementById("clienteValor").value = cliente.valor || ""
+    if (document.getElementById("clienteTags")) {
+      document.getElementById("clienteTags").value = cliente.tags || ""
+    }
+    document.getElementById("clientePrimeiroContato").value = cliente.primeiro_contato || ""
+    document.getElementById("clienteUltimoContato").value = cliente.ultimo_contato || ""
+    document.getElementById("clienteObservacoes").value = cliente.observacoes || ""
+  })
+
+  // Para corretores: ocultar apenas alguns campos, permitir edição de valor, observações e datas de contato
   if (isCorretor) {
     const camposParaOcultar = ["clienteNome", "clienteTelefone", "clienteEmail"]
     camposParaOcultar.forEach(campoId => {
@@ -889,8 +930,8 @@ function editarCliente(id) {
       }
     })
 
-    // Mostrar e habilitar campo de valor e observações para corretores
-    const camposParaMostrar = ["clienteValor", "clienteObservacoes"]
+    // Mostrar e habilitar campos que corretores podem editar
+    const camposParaMostrar = ["clienteValor", "clienteObservacoes", "clientePrimeiroContato", "clienteUltimoContato"]
     camposParaMostrar.forEach(campoId => {
       const el = document.getElementById(campoId)
       if (el) {
@@ -905,7 +946,7 @@ function editarCliente(id) {
     })
   } else {
     // Para admins: mostrar todos os campos
-    const todosCampos = ["clienteNome", "clienteTelefone", "clienteEmail", "clienteValor", "clienteObservacoes"]
+    const todosCampos = ["clienteNome", "clienteTelefone", "clienteEmail", "clienteValor", "clienteObservacoes", "clientePrimeiroContato", "clienteUltimoContato"]
     todosCampos.forEach(campoId => {
       const el = document.getElementById(campoId)
       if (el) {
@@ -1030,7 +1071,7 @@ function abrirDetalhesCliente(id) {
   const detailPrimeiroContatoValue = document.getElementById("detailPrimeiroContatoValue")
 
   if (detailPrimeiroContatoContainer && detailPrimeiroContatoInput && detailPrimeiroContatoValue) {
-    if (isCorretor || isAdminOrHeadAdmin()) {
+    if (usuarioLogado) {
       detailPrimeiroContatoContainer.style.display = ""
       detailPrimeiroContatoValue.textContent = cliente.primeiro_contato ? formatarData(cliente.primeiro_contato) : "-"
       detailPrimeiroContatoValue.style.display = ""
@@ -1045,14 +1086,18 @@ function abrirDetalhesCliente(id) {
         detailPrimeiroContatoInput.focus()
       }
 
-      // Handle input changes
-      detailPrimeiroContatoInput.onblur = async () => {
+      // Function to save primeiro contato
+      const savePrimeiroContato = async () => {
         const newValue = detailPrimeiroContatoInput.value
         const currentValue = cliente.primeiro_contato || ""
 
         if (newValue !== currentValue) {
           try {
-            await atualizarCliente(cliente.id, { primeiro_contato: newValue || null })
+            await atualizarCliente(cliente.id, {
+              primeiro_contato: newValue || null,
+              ultimo_contato: cliente.ultimo_contato, // preservar o outro campo
+              observacoes: cliente.observacoes // preservar as observações
+            })
             cliente.primeiro_contato = newValue || null
             detailPrimeiroContatoValue.textContent = newValue ? formatarData(newValue) : "-"
             mostrarNotificacao("Primeiro contato atualizado com sucesso!", "sucesso")
@@ -1061,6 +1106,15 @@ function abrirDetalhesCliente(id) {
             const clienteIndex = clientes.findIndex(c => c.id === cliente.id)
             if (clienteIndex !== -1) {
               clientes[clienteIndex].primeiro_contato = newValue || null
+            }
+
+            // Update table without page reload
+            atualizarTabela()
+
+            // Garantir que ambos os containers estejam sempre visíveis
+            const detailUltimoContatoContainer = document.getElementById("detailUltimoContatoContainer")
+            if (detailUltimoContatoContainer) {
+              detailUltimoContatoContainer.style.display = ""
             }
           } catch (error) {
             mostrarNotificacao("Erro ao atualizar primeiro contato: " + error.message, "erro")
@@ -1072,14 +1126,19 @@ function abrirDetalhesCliente(id) {
         detailPrimeiroContatoValue.style.display = ""
       }
 
+      // Handle input changes (for calendar selection and manual input)
+      detailPrimeiroContatoInput.onchange = savePrimeiroContato
+      detailPrimeiroContatoInput.oninput = savePrimeiroContato
+
+      // Handle blur
+      detailPrimeiroContatoInput.onblur = savePrimeiroContato
+
       // Handle Enter key
       detailPrimeiroContatoInput.onkeypress = (e) => {
         if (e.key === 'Enter') {
           detailPrimeiroContatoInput.blur()
         }
       }
-    } else {
-      detailPrimeiroContatoContainer.style.display = "none"
     }
   }
 
@@ -1088,7 +1147,7 @@ function abrirDetalhesCliente(id) {
   const detailUltimoContatoValue = document.getElementById("detailUltimoContatoValue")
 
   if (detailUltimoContatoContainer && detailUltimoContatoInput && detailUltimoContatoValue) {
-    if (isCorretor || isAdminOrHeadAdmin()) {
+    if (usuarioLogado) {
       detailUltimoContatoContainer.style.display = ""
       detailUltimoContatoValue.textContent = cliente.ultimo_contato ? formatarData(cliente.ultimo_contato) : "-"
       detailUltimoContatoValue.style.display = ""
@@ -1103,14 +1162,18 @@ function abrirDetalhesCliente(id) {
         detailUltimoContatoInput.focus()
       }
 
-      // Handle input changes
-      detailUltimoContatoInput.onblur = async () => {
+      // Function to save ultimo contato
+      const saveUltimoContato = async () => {
         const newValue = detailUltimoContatoInput.value
         const currentValue = cliente.ultimo_contato || ""
 
         if (newValue !== currentValue) {
           try {
-            await atualizarCliente(cliente.id, { ultimo_contato: newValue || null })
+            await atualizarCliente(cliente.id, {
+              ultimo_contato: newValue || null,
+              primeiro_contato: cliente.primeiro_contato, // preservar o outro campo
+              observacoes: cliente.observacoes // preservar as observações
+            })
             cliente.ultimo_contato = newValue || null
             detailUltimoContatoValue.textContent = newValue ? formatarData(newValue) : "-"
             mostrarNotificacao("Último contato atualizado com sucesso!", "sucesso")
@@ -1123,6 +1186,16 @@ function abrirDetalhesCliente(id) {
 
             // Update table without page reload
             atualizarTabela()
+
+            // Garantir que ambos os containers estejam sempre visíveis
+            const detailPrimeiroContatoContainer = document.getElementById("detailPrimeiroContatoContainer")
+            const detailPrimeiroContatoValue = document.getElementById("detailPrimeiroContatoValue")
+            if (detailPrimeiroContatoContainer) {
+              detailPrimeiroContatoContainer.style.display = ""
+            }
+            if (detailPrimeiroContatoValue) {
+              detailPrimeiroContatoValue.textContent = cliente.primeiro_contato ? formatarData(cliente.primeiro_contato) : "-"
+            }
           } catch (error) {
             mostrarNotificacao("Erro ao atualizar último contato: " + error.message, "erro")
             detailUltimoContatoInput.value = currentValue
@@ -1133,14 +1206,19 @@ function abrirDetalhesCliente(id) {
         detailUltimoContatoValue.style.display = ""
       }
 
+      // Handle input changes (for calendar selection and manual input)
+      detailUltimoContatoInput.onchange = saveUltimoContato
+      detailUltimoContatoInput.oninput = saveUltimoContato
+
+      // Handle blur
+      detailUltimoContatoInput.onblur = saveUltimoContato
+
       // Handle Enter key
       detailUltimoContatoInput.onkeypress = (e) => {
         if (e.key === 'Enter') {
           detailUltimoContatoInput.blur()
         }
       }
-    } else {
-      detailUltimoContatoContainer.style.display = "none"
     }
   }
 
@@ -1577,7 +1655,7 @@ function formatarData(data) {
 }
 
 function formatarStatus(status) {
-  if (!status) return "Novo"
+  if (!status || status === "n/a" || status === "N/A") return "Novo"
   const map = {
     novo: "Novo",
     "em-atendimento": "Em Atendimento",

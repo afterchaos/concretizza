@@ -883,7 +883,7 @@ app.post(
   ],
   validarRequisicao,
   async (req, res) => {
-    const { nome, telefone, email, interesse, valor, status, observacoes, data, tags, force } = req.body
+    const { nome, telefone, email, interesse, valor, status, observacoes, data, tags, primeiro_contato, ultimo_contato } = req.body
     const usuarioResponsavel = req.usuario.id
     const dataCliente = data || new Date().toISOString().split("T")[0]
 
@@ -895,7 +895,7 @@ app.post(
     const atribuidoA = isOnlyCorretor ? usuarioResponsavel : null
     const dataAtribuicao = isOnlyCorretor ? new Date().toISOString().split("T")[0] : null
 
-    console.log(`[${getDataSaoPaulo()}] [CLIENTES] Criando novo cliente:`, { nome, telefone, email, interesse, valor, status, observacoes, data: dataCliente, usuarioResponsavel, atribuidoA, dataAtribuicao, tags })
+    console.log(`[${getDataSaoPaulo()}] [CLIENTES] Criando novo cliente:`, { nome, telefone, email, interesse, valor, status, observacoes, data: dataCliente, usuarioResponsavel, atribuidoA, dataAtribuicao, tags, primeiro_contato, ultimo_contato })
 
     try {
       // Verificar duplicatas antes de criar - implementação inline para debug
@@ -934,8 +934,8 @@ app.post(
       console.log(`[${getDataSaoPaulo()}] [CLIENTES] Nenhuma duplicata encontrada, prosseguindo com criação...`)
 
       const insertResult = await dbQuery(
-        "INSERT INTO clientes (nome, telefone, email, interesse, valor, status, observacoes, data, usuario_id, atribuido_a, data_atribuicao, tags) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
-        [nome, telefone, email || null, interesse, valor || null, status, observacoes || null, dataCliente, usuarioResponsavel, atribuidoA, dataAtribuicao, tags || null]
+        "INSERT INTO clientes (nome, telefone, email, interesse, valor, status, observacoes, data, usuario_id, atribuido_a, data_atribuicao, tags, primeiro_contato, ultimo_contato) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)",
+        [nome, telefone, email || null, interesse, valor || null, status, observacoes || null, dataCliente, usuarioResponsavel, atribuidoA, dataAtribuicao, tags || null, primeiro_contato || null, ultimo_contato || null]
       )
       const clienteId = result.rows ? result.rows[0]?.id : result.lastID
       console.log(`[${getDataSaoPaulo()}] [CLIENTES] Cliente criado com sucesso, ID:`, clienteId)
@@ -985,54 +985,109 @@ app.put(
         // Allow contact date updates for corretores, admins, and head-admins
         // Contact dates can be updated by any corretor for any client
         if (isCorretor || isAdmin) {
-          const result = await dbQuery(
-            "UPDATE clientes SET ultimo_contato = $1, primeiro_contato = $2, atualizado_em = CURRENT_TIMESTAMP WHERE id = $3",
-            [ultimo_contato || null, primeiro_contato || null, id].map(p => p === null || p === undefined ? null : (typeof p === 'object' ? JSON.stringify(p) : String(p)))
-          )
-          if (result.rowCount === 0) return res.status(404).json({ error: "Cliente não encontrado" })
+          let updateFields = []
+          let params = []
+          let paramIndex = 1
 
-          await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Datas de contato atualizadas para cliente: ${nomeCliente}`, nomeCliente, req)
-          return res.json({ success: true, message: "Cliente atualizado com sucesso" })
+          if (ultimo_contato !== undefined) {
+            updateFields.push(`ultimo_contato = $${paramIndex++}`)
+            params.push(ultimo_contato || null)
+          }
+
+          if (primeiro_contato !== undefined) {
+            updateFields.push(`primeiro_contato = $${paramIndex++}`)
+            params.push(primeiro_contato || null)
+          }
+
+          if (updateFields.length > 0) {
+            updateFields.push(`atualizado_em = CURRENT_TIMESTAMP`)
+            const query = `UPDATE clientes SET ${updateFields.join(', ')} WHERE id = $${paramIndex}`
+            params.push(id)
+
+            const result = await dbQuery(query, params)
+            if (result.rowCount === 0) return res.status(404).json({ error: "Cliente não encontrado" })
+
+            await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Datas de contato atualizadas para cliente: ${nomeCliente}`, nomeCliente, req)
+            return res.json({ success: true, message: "Cliente atualizado com sucesso" })
+          } else {
+            return res.status(400).json({ error: "Nenhum campo para atualizar" })
+          }
         } else {
           return res.status(403).json({ error: "Permissão negada" })
         }
       }
 
-      if (isCorretor && !isAdmin) {
-        const cliente = await dbQuery("SELECT usuario_id, atribuido_a FROM clientes WHERE id = $1", [id])
-        if (cliente.rows[0].usuario_id !== req.usuario.id && cliente.rows[0].atribuido_a !== req.usuario.id) {
-          console.log(`[${getDataSaoPaulo()}] [CLIENTES PUT] Corretor tentou editar cliente de outro usuário - usuario_id: ${cliente.rows[0].usuario_id}, atribuido_a: ${cliente.rows[0].atribuido_a}, req.usuario.id: ${req.usuario.id}`)
-          return res.status(403).json({ error: "Você não tem permissão para editar este cliente" })
-        }
+    if (isCorretor && !isAdmin) {
+      const cliente = await dbQuery("SELECT usuario_id, atribuido_a FROM clientes WHERE id = $1", [id])
+      const usuarioId = parseInt(req.usuario.id)
+      const clienteUsuarioId = parseInt(cliente.rows[0].usuario_id)
+      const clienteAtribuidoA = cliente.rows[0].atribuido_a ? parseInt(cliente.rows[0].atribuido_a) : null
+
+      console.log(`[${getDataSaoPaulo()}] [CLIENTES PUT] Verificando permissões - usuario_id: ${clienteUsuarioId}, atribuido_a: ${clienteAtribuidoA}, req.usuario.id: ${usuarioId}`)
+
+      if (clienteUsuarioId !== usuarioId && clienteAtribuidoA !== usuarioId) {
+        console.log(`[${getDataSaoPaulo()}] [CLIENTES PUT] Corretor tentou editar cliente de outro usuário - usuario_id: ${clienteUsuarioId}, atribuido_a: ${clienteAtribuidoA}, req.usuario.id: ${usuarioId}`)
+        return res.status(403).json({ error: "Você não tem permissão para editar este cliente" })
+      }
 
         // Verificar mudanças de status relacionadas à ativação/inativação
         const deveInativar = status === "finalizado" && status !== statusAtual
         const deveReativar = status !== "finalizado" && statusAtual === "finalizado"
 
-        // Garantir que todos os valores sejam null se undefined (SQLite não aceita undefined)
-        const safeInteresse = interesse !== undefined ? interesse : null
-        const safeStatus = status !== undefined ? status : null
-        const safeObservacoes = observacoes !== undefined ? observacoes : null
-        const safeValor = valor !== undefined ? valor : null
-        const safeUltimoContato = ultimo_contato !== undefined ? ultimo_contato : null
-        const safePrimeiroContato = primeiro_contato !== undefined ? primeiro_contato : null
+        // Build dynamic update query - only update fields that were provided
+        let updateFields = []
+        let params = []
+        let paramIndex = 1
 
-        let updateQuery = "UPDATE clientes SET interesse = $1, status = $2, observacoes = $3, valor = $4, ultimo_contato = $5, primeiro_contato = $6"
-        let params = [safeInteresse, safeStatus, safeObservacoes, safeValor, safeUltimoContato, safePrimeiroContato]
-
-        if (deveInativar) {
-          updateQuery += ", ativo = $7, atribuido_a = $8"
-          params.push(false, null)
-        } else if (deveReativar) {
-          // Quando reativar um cliente finalizado, atribuir ao corretor que está fazendo a edição
-          updateQuery += ", ativo = $7, atribuido_a = $8, data_atribuicao = $9"
-          params.push(true, req.usuario.id, getDataSaoPauloDate(new Date().toISOString()))
+        if (interesse !== undefined) {
+          updateFields.push(`interesse = $${paramIndex++}`)
+          params.push(interesse)
+        }
+        if (status !== undefined) {
+          updateFields.push(`status = $${paramIndex++}`)
+          params.push(status)
+        }
+        if (observacoes !== undefined) {
+          updateFields.push(`observacoes = $${paramIndex++}`)
+          params.push(observacoes)
+        }
+        if (valor !== undefined) {
+          updateFields.push(`valor = $${paramIndex++}`)
+          params.push(valor)
+        }
+        if (ultimo_contato !== undefined) {
+          updateFields.push(`ultimo_contato = $${paramIndex++}`)
+          params.push(ultimo_contato)
+        }
+        if (primeiro_contato !== undefined) {
+          updateFields.push(`primeiro_contato = $${paramIndex++}`)
+          params.push(primeiro_contato)
         }
 
-        updateQuery += ", atualizado_em = CURRENT_TIMESTAMP WHERE id = $" + (params.length + 1)
+        if (updateFields.length === 0) {
+          return res.status(400).json({ error: "Nenhum campo para atualizar" })
+        }
+
+        if (deveInativar) {
+          updateFields.push(`ativo = $${paramIndex++}`)
+          params.push(false)
+          updateFields.push(`atribuido_a = $${paramIndex++}`)
+          params.push(null)
+        } else if (deveReativar) {
+          // Quando reativar um cliente finalizado, atribuir ao corretor que está fazendo a edição
+          updateFields.push(`ativo = $${paramIndex++}`)
+          params.push(true)
+          updateFields.push(`atribuido_a = $${paramIndex++}`)
+          params.push(req.usuario.id)
+          updateFields.push(`data_atribuicao = $${paramIndex++}`)
+          params.push(getDataSaoPauloDate(new Date().toISOString()))
+        }
+
+        updateFields.push(`atualizado_em = CURRENT_TIMESTAMP`)
+        const updateQuery = `UPDATE clientes SET ${updateFields.join(', ')} WHERE id = $${paramIndex}`
         params.push(id)
 
-        const result = await dbQuery(updateQuery, params.map(p => p === null || p === undefined ? null : (typeof p === 'object' ? JSON.stringify(p) : String(p))))
+        const result = await dbQuery(updateQuery, params)
         if (result.rowCount === 0) return res.status(404).json({ error: "Cliente não encontrado" })
 
         // Log sempre que houver mudança de status (corretores)
@@ -1043,7 +1098,7 @@ app.put(
             ? `Status do cliente "${nomeCliente}" alterado para "${status}" (cliente marcado como inativo e removido do corretor)`
             : `Status do cliente "${nomeCliente}" alterado de "${statusAtual || 'N/A'}" para "${status || 'N/A'}"`
           await registrarLog(req.usuario.id, "EDITAR", "Clientes", mensagemLog, nomeCliente, req)
-        } else if (interesse !== undefined || observacoes !== undefined || valor !== undefined || ultimo_contato !== undefined) {
+        } else if (updateFields.some(field => !field.includes('atualizado_em'))) {
           await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Cliente atualizado (restrito): ${nomeCliente}`, nomeCliente, req)
         }
 
@@ -1054,21 +1109,71 @@ app.put(
       const deveInativar = status === "finalizado" && status !== statusAtual
       const deveReativar = status !== "finalizado" && statusAtual === "finalizado"
 
-      let updateQuery = "UPDATE clientes SET nome = $1, telefone = $2, email = $3, interesse = $4, valor = $5, status = $6, observacoes = $7, tags = $8"
-      let params = [nome, telefone, email, interesse, valor, status, observacoes, tags]
+      // Build dynamic update query - only update fields that were provided
+      let updateFields = []
+      let params = []
+      let paramIndex = 1
+
+      if (nome !== undefined) {
+        updateFields.push(`nome = $${paramIndex++}`)
+        params.push(nome)
+      }
+      if (telefone !== undefined) {
+        updateFields.push(`telefone = $${paramIndex++}`)
+        params.push(telefone)
+      }
+      if (email !== undefined) {
+        updateFields.push(`email = $${paramIndex++}`)
+        params.push(email)
+      }
+      if (interesse !== undefined) {
+        updateFields.push(`interesse = $${paramIndex++}`)
+        params.push(interesse)
+      }
+      if (valor !== undefined) {
+        updateFields.push(`valor = $${paramIndex++}`)
+        params.push(valor)
+      }
+      if (status !== undefined) {
+        updateFields.push(`status = $${paramIndex++}`)
+        params.push(status)
+      }
+      if (observacoes !== undefined) {
+        updateFields.push(`observacoes = $${paramIndex++}`)
+        params.push(observacoes)
+      }
+      if (tags !== undefined) {
+        updateFields.push(`tags = $${paramIndex++}`)
+        params.push(tags)
+      }
+      if (ultimo_contato !== undefined) {
+        updateFields.push(`ultimo_contato = $${paramIndex++}`)
+        params.push(ultimo_contato)
+      }
+      if (primeiro_contato !== undefined) {
+        updateFields.push(`primeiro_contato = $${paramIndex++}`)
+        params.push(primeiro_contato)
+      }
+
+      if (updateFields.length === 0) {
+        return res.status(400).json({ error: "Nenhum campo para atualizar" })
+      }
 
       if (deveInativar) {
-        updateQuery += ", ativo = $9, atribuido_a = $10"
-        params.push(false, null)
+        updateFields.push(`ativo = $${paramIndex++}`)
+        params.push(false)
+        updateFields.push(`atribuido_a = $${paramIndex++}`)
+        params.push(null)
       } else if (deveReativar) {
-        updateQuery += ", ativo = $9"
+        updateFields.push(`ativo = $${paramIndex++}`)
         params.push(true)
       }
 
-      updateQuery += ", atualizado_em = CURRENT_TIMESTAMP WHERE id = $" + (params.length + 1)
+      updateFields.push(`atualizado_em = CURRENT_TIMESTAMP`)
+      const updateQuery = `UPDATE clientes SET ${updateFields.join(', ')} WHERE id = $${paramIndex}`
       params.push(id)
 
-      const result = await dbQuery(updateQuery, params.map(p => p === null || p === undefined ? null : (typeof p === 'object' ? JSON.stringify(p) : String(p))))
+      const result = await dbQuery(updateQuery, params)
       if (result.rowCount === 0) return res.status(404).json({ error: "Cliente não encontrado" })
 
       const nomeFinal = nome || nomeCliente
@@ -1076,7 +1181,7 @@ app.put(
       // Log sempre que houver mudança de status (admins e corretores)
       if (status !== undefined && status !== statusAtual) {
         await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Status do cliente "${nomeFinal}" alterado de "${statusAtual || 'N/A'}" para "${status || 'N/A'}"`, nomeFinal, req)
-      } else if (interesse !== undefined || observacoes !== undefined) {
+      } else if (updateFields.some(field => !field.includes('atualizado_em'))) {
         await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Cliente atualizado: ${nomeFinal}`, nomeFinal, req)
       }
 
