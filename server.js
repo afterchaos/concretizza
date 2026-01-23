@@ -983,16 +983,8 @@ app.put(
 
       if (isContactUpdateOnly) {
         // Allow contact date updates for corretores, admins, and head-admins
+        // Contact dates can be updated by any corretor for any client
         if (isCorretor || isAdmin) {
-          // For pure corretores, check ownership
-          if (isCorretor && !isAdmin) {
-            const cliente = await dbQuery("SELECT usuario_id, atribuido_a FROM clientes WHERE id = $1", [id])
-            if (cliente.rows[0].usuario_id !== req.usuario.id && cliente.rows[0].atribuido_a !== req.usuario.id) {
-              console.log(`[${getDataSaoPaulo()}] [CLIENTES PUT] Corretor tentou editar cliente de outro usuário - usuario_id: ${cliente.rows[0].usuario_id}, atribuido_a: ${cliente.rows[0].atribuido_a}, req.usuario.id: ${req.usuario.id}`)
-              return res.status(403).json({ error: "Você não tem permissão para editar este cliente" })
-            }
-          }
-
           const result = await dbQuery(
             "UPDATE clientes SET ultimo_contato = $1, primeiro_contato = $2, atualizado_em = CURRENT_TIMESTAMP WHERE id = $3",
             [ultimo_contato || null, primeiro_contato || null, id].map(p => p === null || p === undefined ? null : (typeof p === 'object' ? JSON.stringify(p) : String(p)))
