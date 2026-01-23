@@ -763,7 +763,7 @@ async function executarSalvamentoCliente(cliente) {
       registrarLog("EDITAR", "CLIENTES", `Cliente "${cliente.nome}" atualizado`, cliente.nome)
       mostrarNotificacao("Cliente atualizado com sucesso!", "sucesso")
 
-      // Atualizar cliente no array local para preservar filtros
+        // Atualizar cliente no array local para preservar filtros
       const clienteIndex = clientes.findIndex(c => c.id === clienteEmEdicao)
       if (clienteIndex !== -1) {
         // Manter campos que não são editáveis por corretores ou que vêm da API
@@ -776,19 +776,51 @@ async function executarSalvamentoCliente(cliente) {
         const usuarioLogado = obterUsuarioLogado()
         const isCorretor = usuarioLogado && getCargosAsArray(usuarioLogado.cargo).some(c => c.toLowerCase().includes('corretor')) && !isAdminOrHeadAdmin()
 
-        clientes[clienteIndex] = {
-          ...clienteExistente,
-          ...cliente,
-          // Garantir que campos do sistema sejam preservados
-          usuario_id: clienteExistente.usuario_id,
-          criado_em: clienteExistente.criado_em,
-          atualizado_em: new Date().toISOString(),
-          cadastrado_por: clienteExistente.cadastrado_por,
-          // Se foi finalizado, remover atribuição; se foi reativado, atribuir ao corretor logado apenas se for corretor
-          atribuido_a: deveDesatribuir ? null : (deveReativar && isCorretor ? usuarioLogado.id : clienteExistente.atribuido_a),
-          atribuido_a_nome: deveDesatribuir ? null : (deveReativar && isCorretor ? usuarioLogado.nome : clienteExistente.atribuido_a_nome),
-          data_atribuicao: deveDesatribuir ? null : (deveReativar && isCorretor ? new Date().toISOString().split("T")[0] : clienteExistente.data_atribuicao)
+        // Para corretores, preservar campos que eles não podem editar
+        let clienteAtualizado
+        if (isCorretor) {
+          clienteAtualizado = {
+            ...clienteExistente,
+            // Apenas atualizar campos que corretores podem editar
+            interesse: cliente.interesse !== undefined ? cliente.interesse : clienteExistente.interesse,
+            valor: cliente.valor !== undefined && cliente.valor !== null && cliente.valor !== "" ? cliente.valor : clienteExistente.valor,
+            observacoes: cliente.observacoes !== undefined ? cliente.observacoes : clienteExistente.observacoes,
+            status: cliente.status !== undefined ? cliente.status : clienteExistente.status,
+            // Campos de contato que podem ser atualizados
+            ultimo_contato: cliente.ultimo_contato !== undefined ? cliente.ultimo_contato : clienteExistente.ultimo_contato,
+            primeiro_contato: cliente.primeiro_contato !== undefined ? cliente.primeiro_contato : clienteExistente.primeiro_contato,
+            // Garantir que campos do sistema sejam preservados
+            usuario_id: clienteExistente.usuario_id,
+            criado_em: clienteExistente.criado_em,
+            atualizado_em: new Date().toISOString(),
+            cadastrado_por: clienteExistente.cadastrado_por,
+            nome: clienteExistente.nome, // Preservar nome
+            telefone: clienteExistente.telefone, // Preservar telefone
+            email: clienteExistente.email, // Preservar email
+            tags: clienteExistente.tags, // Preservar tags
+            // Se foi finalizado, remover atribuição; se foi reativado, atribuir ao corretor logado apenas se for corretor
+            atribuido_a: deveDesatribuir ? null : (deveReativar && isCorretor ? usuarioLogado.id : clienteExistente.atribuido_a),
+            atribuido_a_nome: deveDesatribuir ? null : (deveReativar && isCorretor ? usuarioLogado.nome : clienteExistente.atribuido_a_nome),
+            data_atribuicao: deveDesatribuir ? null : (deveReativar && isCorretor ? new Date().toISOString().split("T")[0] : clienteExistente.data_atribuicao)
+          }
+        } else {
+          // Para admins, permitir atualização completa
+          clienteAtualizado = {
+            ...clienteExistente,
+            ...cliente,
+            // Garantir que campos do sistema sejam preservados
+            usuario_id: clienteExistente.usuario_id,
+            criado_em: clienteExistente.criado_em,
+            atualizado_em: new Date().toISOString(),
+            cadastrado_por: clienteExistente.cadastrado_por,
+            // Se foi finalizado, remover atribuição; se foi reativado, atribuir ao corretor logado apenas se for corretor
+            atribuido_a: deveDesatribuir ? null : (deveReativar && isCorretor ? usuarioLogado.id : clienteExistente.atribuido_a),
+            atribuido_a_nome: deveDesatribuir ? null : (deveReativar && isCorretor ? usuarioLogado.nome : clienteExistente.atribuido_a_nome),
+            data_atribuicao: deveDesatribuir ? null : (deveReativar && isCorretor ? new Date().toISOString().split("T")[0] : clienteExistente.data_atribuicao)
+          }
         }
+
+        clientes[clienteIndex] = clienteAtualizado
 
         // Reaplicar filtros atuais sem recarregar dados
         filtrarClientes()
