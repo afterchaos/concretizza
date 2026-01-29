@@ -447,6 +447,44 @@ body {
   letter-spacing: 0.05em;
 }
 
+/* Appointment status badges */
+.badge-agendado {
+  background-color: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+}
+
+.badge-concluido {
+  background-color: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+}
+
+.badge-cancelado {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+/* Appointment type badges */
+.badge-visita {
+  background-color: rgba(255, 215, 0, 0.2);
+  color: var(--color-gold-primary);
+}
+
+.badge-reuniao {
+  background-color: rgba(139, 92, 246, 0.2);
+  color: #8b5cf6;
+}
+
+.badge-assinatura {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
+.badge-outro {
+  background-color: rgba(156, 163, 175, 0.2);
+  color: #9ca3af;
+}
+
+/* Client status badges (keeping for compatibility) */
 .badge-novo {
   background-color: rgba(100, 200, 255, 0.2);
   color: #64c8ff;

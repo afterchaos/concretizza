@@ -546,6 +546,32 @@ function configurarEventos() {
     })
   }
 
+  const btnGerarWaMe = document.getElementById("btnGerarWaMe")
+  if (btnGerarWaMe) {
+    btnGerarWaMe.addEventListener("click", async () => {
+      if (clienteParaVer && clienteParaVer.telefone) {
+        let telefone = clienteParaVer.telefone.replace(/[^\d\s]/g, '').replace(/\s+/g, '')
+        let whatsappNumber = '55' + telefone
+        const waMeLink = `https://wa.me/${whatsappNumber}`
+
+        try {
+          await navigator.clipboard.writeText(waMeLink)
+          mostrarNotificacao("Link wa.me copiado para a área de transferência!", "sucesso")
+        } catch (error) {
+          console.error("Erro ao copiar link:", error)
+          // Fallback para navegadores que não suportam clipboard API
+          const textArea = document.createElement("textarea")
+          textArea.value = waMeLink
+          document.body.appendChild(textArea)
+          textArea.select()
+          document.execCommand('copy')
+          document.body.removeChild(textArea)
+          mostrarNotificacao("Link wa.me copiado para a área de transferência!", "sucesso")
+        }
+      }
+    })
+  }
+
   const closeConfirmacao = document.getElementById("closeConfirmacao")
   if (closeConfirmacao) {
     closeConfirmacao.addEventListener("click", () => {
@@ -889,10 +915,9 @@ function editarCliente(id) {
     // Definir valores dos selects com verificação adicional
     const interesseSelect = document.getElementById("clienteInteresse")
     if (interesseSelect) {
-      // Garantir que o valor seja válido
-      const interesseValue = cliente.interesse || "alugar"
+      // Preferir preservar o valor existente; se inexistente, manter em branco
+      const interesseValue = (cliente.interesse !== undefined && cliente.interesse !== null) ? cliente.interesse : ""
       interesseSelect.value = interesseValue
-      console.log("Definindo interesse:", interesseValue, "cliente.interesse:", cliente.interesse)
       // Disparar evento change manualmente para garantir que o valor seja aplicado
       interesseSelect.dispatchEvent(new Event('change', { bubbles: true }))
     }
@@ -1037,6 +1062,11 @@ function abrirDetalhesCliente(id) {
   if (btnEditarDetalhes) {
     const podeEditarEste = (podeEditar && !isCorretor) || (isCorretor && (cliente.usuario_id === usuarioLogado.id || cliente.atribuido_a === usuarioLogado.id))
     btnEditarDetalhes.style.display = podeEditarEste ? "" : "none"
+  }
+
+  const btnGerarWaMe = document.getElementById("btnGerarWaMe")
+  if (btnGerarWaMe) {
+    btnGerarWaMe.style.display = isAdminOrHeadAdmin() ? "" : "none"
   }
   
   const detailCadastradoPorContainer = document.getElementById("detailCadastradoPorContainer")

@@ -960,7 +960,7 @@ app.put(
   validarRequisicao,
   async (req, res) => {
     const { id } = req.params
-    const { nome = null, telefone = null, email = null, interesse = null, valor = null, status = null, observacoes = null, tags = null, ultimo_contato = null, primeiro_contato = null } = req.body
+    const { nome, telefone, email, interesse, valor, status, observacoes, tags, ultimo_contato, primeiro_contato } = req.body
     const cargos = req.usuario.cargo ? req.usuario.cargo.toLowerCase().split(',').map(c => c.trim()) : []
     const isCorretor = cargos.includes("corretor")
     const isAdmin = cargos.includes("admin") || cargos.includes("head-admin")

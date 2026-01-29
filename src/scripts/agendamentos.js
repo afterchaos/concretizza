@@ -71,6 +71,7 @@ let corretores = []
 let chartInstance = null
 let agendamentoEmEdicao = null
 let agendamentoParaExcluir = null
+let agendamentoParaVer = null
 let isAdminUser = false
 let isCorretorUser = false
 let usuarioLogado = null
@@ -222,7 +223,7 @@ function renderizarTabela() {
     const corretorCell = showCorretorColumn ? `<td>${corretorNome}</td>` : ''
 
     return `
-    <tr>
+    <tr onclick="abrirDetalhesAgendamento(${a.id})" style="cursor: pointer;">
       <td>${a.cliente_nome || a.cliente || '-'}</td>
       ${corretorCell}
       <td>${formatarData(a.data)}</td>
@@ -230,7 +231,7 @@ function renderizarTabela() {
       <td>${formatarTipo(a.tipo)}</td>
       <td><span class="badge badge-${a.status}">${formatarStatus(a.status)}</span></td>
       <td>${a.local || '-'}</td>
-      <td>
+      <td onclick="event.stopPropagation();">
         <button class="btn-action btn-edit" onclick="editarAgendamento(${a.id})">
           <i class="fas fa-edit"></i> Editar
         </button>
@@ -459,7 +460,34 @@ function configurarEventos() {
   if (confirmExclusao) {
     confirmExclusao.addEventListener("click", confirmarExclusao)
   }
-  
+
+  // Modal Detalhes Agendamento
+  const modalDetalhes = document.getElementById("modalDetalhesAgendamento")
+  const closeDetalhes = document.getElementById("closeDetalhesAgendamento")
+  const btnEditarDetalhes = document.getElementById("btnEditarDetalhesAgendamento")
+  const btnFecharDetalhes = document.getElementById("btnFecharDetalhesAgendamento")
+
+  if (closeDetalhes) {
+    closeDetalhes.addEventListener("click", () => {
+      modalDetalhes.style.display = "none"
+    })
+  }
+
+  if (btnEditarDetalhes) {
+    btnEditarDetalhes.addEventListener("click", () => {
+      modalDetalhes.style.display = "none"
+      if (agendamentoParaVer) {
+        editarAgendamento(agendamentoParaVer.id)
+      }
+    })
+  }
+
+  if (btnFecharDetalhes) {
+    btnFecharDetalhes.addEventListener("click", () => {
+      modalDetalhes.style.display = "none"
+    })
+  }
+
   // Form submit
   const form = document.getElementById("formAgendamento")
   if (form) {
@@ -611,7 +639,7 @@ window.excluirAgendamento = function(id) {
 
 async function confirmarExclusao() {
   if (!agendamentoParaExcluir) return
-  
+
   try {
     await deletarAgendamento(agendamentoParaExcluir)
     mostrarToast("Agendamento excluído!", "sucesso")
@@ -622,6 +650,58 @@ async function confirmarExclusao() {
     console.error("Erro ao excluir agendamento:", error)
     mostrarToast("Erro ao excluir: " + error.message, "erro")
   }
+}
+
+// Expose function to global scope for onclick handlers
+window.abrirDetalhesAgendamento = function(id) {
+  const agendamento = agendamentos.find(a => a.id === id)
+  if (!agendamento) return
+
+  agendamentoParaVer = agendamento
+
+  // Preencher informações do agendamento
+  document.getElementById("detailAgendamentoAvatar").textContent = (agendamento.tipo || 'A').charAt(0).toUpperCase()
+  document.getElementById("detailClienteNome").textContent = agendamento.cliente_nome || agendamento.cliente || '-'
+  document.getElementById("detailTipoBadge").textContent = formatarTipo(agendamento.tipo)
+  document.getElementById("detailTipoBadge").className = `badge badge-${agendamento.tipo}`
+
+  document.getElementById("detailData").textContent = formatarData(agendamento.data)
+  document.getElementById("detailHora").textContent = agendamento.hora
+  document.getElementById("detailTipo").textContent = formatarTipo(agendamento.tipo)
+  document.getElementById("detailStatus").textContent = formatarStatus(agendamento.status)
+
+  // Corretor
+  const corretorNome = (corretores.find(c => c.id === agendamento.corretor_id)?.nome) ||
+                       (agendamento.corretor_id === usuarioLogado?.id ? usuarioLogado.nome : '') || '-'
+  const detailCorretorContainer = document.getElementById("detailCorretorContainer")
+  if (detailCorretorContainer) {
+    if (corretorNome !== '-') {
+      detailCorretorContainer.style.display = ""
+      document.getElementById("detailCorretor").textContent = corretorNome
+    } else {
+      detailCorretorContainer.style.display = "none"
+    }
+  }
+
+  // Local
+  const detailLocal = document.getElementById("detailLocal")
+  if (detailLocal) {
+    detailLocal.textContent = agendamento.local || '-'
+  }
+
+  // Observações
+  const detailObservacoesContainer = document.getElementById("detailObservacoesContainer")
+  const detailObservacoes = document.getElementById("detailObservacoes")
+  if (detailObservacoesContainer && detailObservacoes) {
+    if (agendamento.observacoes) {
+      detailObservacoesContainer.style.display = ""
+      detailObservacoes.textContent = agendamento.observacoes
+    } else {
+      detailObservacoesContainer.style.display = "none"
+    }
+  }
+
+  document.getElementById("modalDetalhesAgendamento").style.display = "flex"
 }
 
 function formatarData(data) {

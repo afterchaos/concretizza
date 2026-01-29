@@ -276,6 +276,108 @@
         </div>
     </div>
 
+    <!-- Modal de detalhes do agendamento -->
+    <div id="modalDetalhesAgendamento" class="modal">
+        <div class="modal-content modal-details">
+            <div class="modal-header">
+                <h2>Detalhes do Agendamento</h2>
+                <button class="modal-close" id="closeDetalhesAgendamento">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="user-profile-header">
+                    <div class="profile-avatar">
+                        <span id="detailAgendamentoAvatar">A</span>
+                    </div>
+                    <div class="profile-info">
+                        <h3 id="detailClienteNome">-</h3>
+                        <span id="detailTipoBadge" class="badge">-</span>
+                    </div>
+                </div>
+
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <div class="detail-icon">
+                            <i class="fas fa-calendar"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Data</span>
+                            <span class="detail-value" id="detailData">-</span>
+                        </div>
+                    </div>
+
+                    <div class="detail-item">
+                        <div class="detail-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Hora</span>
+                            <span class="detail-value" id="detailHora">-</span>
+                        </div>
+                    </div>
+
+                    <div class="detail-item">
+                        <div class="detail-icon">
+                            <i class="fas fa-tag"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Tipo</span>
+                            <span class="detail-value" id="detailTipo">-</span>
+                        </div>
+                    </div>
+
+                    <div class="detail-item">
+                        <div class="detail-icon">
+                            <i class="fas fa-info-circle"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Status</span>
+                            <span class="detail-value" id="detailStatus">-</span>
+                        </div>
+                    </div>
+
+                    <div class="detail-item" id="detailCorretorContainer">
+                        <div class="detail-icon">
+                            <i class="fas fa-user-tie"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Corretor</span>
+                            <span class="detail-value" id="detailCorretor">-</span>
+                        </div>
+                    </div>
+
+                    <div class="detail-item detail-full">
+                        <div class="detail-icon">
+                            <i class="fas fa-map-marker-alt"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Local</span>
+                            <span class="detail-value" id="detailLocal">-</span>
+                        </div>
+                    </div>
+
+                    <div class="detail-item detail-full" id="detailObservacoesContainer">
+                        <div class="detail-icon">
+                            <i class="fas fa-file-alt"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Observações</span>
+                            <span class="detail-value" id="detailObservacoes">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="details-actions">
+                    <button class="btn-primary" id="btnEditarDetalhesAgendamento">
+                        <i class="fas fa-edit"></i> Editar Agendamento
+                    </button>
+                    <button class="btn-secondary" id="btnFecharDetalhesAgendamento">
+                        Fechar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="modalConfirmacaoLogout" class="modal">
         <div class="modal-content modal-confirmation">
             <div class="modal-header">
