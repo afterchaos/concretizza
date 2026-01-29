@@ -539,17 +539,26 @@ async function initializeTables() {
         modulo TEXT NOT NULL,
         descricao TEXT,
         usuario_afetado TEXT,
+        cliente_id INTEGER REFERENCES clientes(id),
         ip_address TEXT,
         criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `)
     
-    // Garantir que a coluna usuario_afetado exista (migração)
+    // Garantir que as colunas usuario_afetado e cliente_id existam (migrações)
     try {
       await dbQuery("ALTER TABLE logs_auditoria ADD COLUMN usuario_afetado TEXT")
     } catch (e) {
       if (!e.message?.includes("already exists") && !e.message?.includes("duplicate column")) {
         console.log(`[${getDataSaoPaulo()}] Nota: Coluna usuario_afetado já existe ou erro ao adicionar:`, e.message)
+      }
+    }
+
+    try {
+      await dbQuery("ALTER TABLE logs_auditoria ADD COLUMN cliente_id INTEGER REFERENCES clientes(id)")
+    } catch (e) {
+      if (!e.message?.includes("already exists") && !e.message?.includes("duplicate column")) {
+        console.log(`[${getDataSaoPaulo()}] Nota: Coluna cliente_id já existe ou erro ao adicionar:`, e.message)
       }
     }
 
@@ -643,13 +652,13 @@ async function initializeTables() {
 }
 
 // ===== FUNÇÃO DE LOG =====
-async function registrarLog(usuarioId, acao, modulo, descricao, usuarioAfetado = null, req = null) {
+async function registrarLog(usuarioId, acao, modulo, descricao, usuarioAfetado = null, req = null, clienteId = null) {
   try {
     const ip = req ? (req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for']?.split(',')[0]?.trim()) : null
     
     await dbQuery(
-      "INSERT INTO logs_auditoria (usuario_id, acao, modulo, descricao, usuario_afetado, ip_address) VALUES ($1, $2, $3, $4, $5, $6)",
-      [usuarioId, acao, modulo, descricao, usuarioAfetado, ip]
+      "INSERT INTO logs_auditoria (usuario_id, acao, modulo, descricao, usuario_afetado, cliente_id, ip_address) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+      [usuarioId, acao, modulo, descricao, usuarioAfetado, clienteId || null, ip]
     )
     
     console.log(`[LOG] ${getDataSaoPaulo()} - ${acao} - ${modulo}: ${descricao}`)
@@ -937,9 +946,9 @@ app.post(
         "INSERT INTO clientes (nome, telefone, email, interesse, valor, status, observacoes, data, usuario_id, atribuido_a, data_atribuicao, tags, primeiro_contato, ultimo_contato) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)",
         [nome, telefone, email || null, interesse, valor || null, status, observacoes || null, dataCliente, usuarioResponsavel, atribuidoA, dataAtribuicao, tags || null, primeiro_contato || null, ultimo_contato || null]
       )
-      const clienteId = result.rows ? result.rows[0]?.id : result.lastID
+      const clienteId = insertResult.rows ? insertResult.rows[0]?.id : insertResult.lastID
       console.log(`[${getDataSaoPaulo()}] [CLIENTES] Cliente criado com sucesso, ID:`, clienteId)
-      await registrarLog(req.usuario.id, "CRIAR", "Clientes", `Cliente criado: ${nome}`, nome, req)
+      await registrarLog(req.usuario.id, "CRIAR", "Clientes", `Cliente criado: ${nome}`, nome, req, clienteId)
       res.status(201).json({ id: clienteId, message: "Cliente criado com sucesso" })
     } catch (err) {
       console.error(`[${getDataSaoPaulo()}] [CLIENTES] Erro ao inserir cliente:`, err)
@@ -1007,7 +1016,7 @@ app.put(
             const result = await dbQuery(query, params)
             if (result.rowCount === 0) return res.status(404).json({ error: "Cliente não encontrado" })
 
-            await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Datas de contato atualizadas para cliente: ${nomeCliente}`, nomeCliente, req)
+            await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Datas de contato atualizadas para cliente: ${nomeCliente}`, nomeCliente, req, id)
             return res.json({ success: true, message: "Cliente atualizado com sucesso" })
           } else {
             return res.status(400).json({ error: "Nenhum campo para atualizar" })
@@ -1097,9 +1106,9 @@ app.put(
             : deveInativar
             ? `Status do cliente "${nomeCliente}" alterado para "${status}" (cliente marcado como inativo e removido do corretor)`
             : `Status do cliente "${nomeCliente}" alterado de "${statusAtual || 'N/A'}" para "${status || 'N/A'}"`
-          await registrarLog(req.usuario.id, "EDITAR", "Clientes", mensagemLog, nomeCliente, req)
+          await registrarLog(req.usuario.id, "EDITAR", "Clientes", mensagemLog, nomeCliente, req, id)
         } else if (updateFields.some(field => !field.includes('atualizado_em'))) {
-          await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Cliente atualizado (restrito): ${nomeCliente}`, nomeCliente, req)
+          await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Cliente atualizado (restrito): ${nomeCliente}`, nomeCliente, req, id)
         }
 
         return res.json({ success: true, message: "Cliente atualizado com sucesso" })
@@ -1180,9 +1189,9 @@ app.put(
 
       // Log sempre que houver mudança de status (admins e corretores)
       if (status !== undefined && status !== statusAtual) {
-        await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Status do cliente "${nomeFinal}" alterado de "${statusAtual || 'N/A'}" para "${status || 'N/A'}"`, nomeFinal, req)
+        await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Status do cliente "${nomeFinal}" alterado de "${statusAtual || 'N/A'}" para "${status || 'N/A'}"`, nomeFinal, req, id)
       } else if (updateFields.some(field => !field.includes('atualizado_em'))) {
-        await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Cliente atualizado: ${nomeFinal}`, nomeFinal, req)
+        await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Cliente atualizado: ${nomeFinal}`, nomeFinal, req, id)
       }
 
       res.json({ success: true, message: "Cliente atualizado com sucesso" })
@@ -1226,7 +1235,7 @@ app.delete(
         return res.status(404).json({ error: "Cliente não encontrado" })
       }
 
-      await registrarLog(req.usuario.id, "DELETAR", "Clientes", `Cliente deletado: ${id}`, clienteNome, req)
+      await registrarLog(req.usuario.id, "DELETAR", "Clientes", `Cliente deletado: ${id}`, clienteNome, req, id)
       res.json({ success: true, message: "Cliente deletado com sucesso" })
     } catch (error) {
       console.error("[CLIENTES DELETE] Erro ao deletar cliente:", error)
@@ -1282,7 +1291,7 @@ app.post(
         return res.status(404).json({ error: "Cliente não encontrado" })
       }
 
-      await registrarLog(req.usuario.id, "ATRIBUIR_CLIENTE", "Clientes", `Cliente "${nomeCliente}" atribuído ao corretor "${nomeCorretor}"`, nomeCliente, req)
+      await registrarLog(req.usuario.id, "ATRIBUIR_CLIENTE", "Clientes", `Cliente "${nomeCliente}" atribuído ao corretor "${nomeCorretor}"`, nomeCliente, req, id)
 
       console.log(`[${getDataSaoPaulo()}] [CLIENTES ATRIBUIR] Cliente ${id} atribuído ao corretor ${atribuido_a} por ${req.usuario.username}`)
       res.json({ message: "Cliente atribuído com sucesso" })
@@ -2058,16 +2067,16 @@ app.get("/api/clientes/:id/historico-atribuicoes", autenticar, autorizar("admin"
       return res.status(404).json({ error: "Cliente não encontrado" })
     }
 
-    // Buscar histórico de atribuições nos logs
+    // Buscar histórico de atribuições nos logs - filtrar por cliente_id para evitar problemas com nomes duplicados
     const logs = await dbQuery(`
       SELECT l.*, u.nome as usuario_logado_nome
       FROM logs_auditoria l
       LEFT JOIN usuarios u ON l.usuario_id = u.id
-      WHERE l.modulo = 'CORRETORES'
-        AND (l.acao = 'ATRIBUIR_CLIENTE' OR l.acao = 'REMOVER_CLIENTE')
-        AND l.usuario_afetado = $1
+      WHERE l.modulo = 'Clientes'
+        AND (l.acao = 'ATRIBUIR_CLIENTE' OR l.acao = 'REMOVER_CLIENTE' OR l.acao = 'EDITAR')
+        AND (l.cliente_id = $1 OR l.usuario_afetado = $2)
       ORDER BY l.criado_em ASC
-    `, [cliente.rows[0].nome])
+    `, [id, cliente.rows[0].nome])
 
     // Buscar primeira atribuição (se houver) e data de cadastro
     const primeiraAtribuicao = await dbQuery(`
@@ -2144,17 +2153,17 @@ app.get("/api/clientes/:id/historico-status", autenticar, autorizar("admin", "he
       return res.status(404).json({ error: "Cliente não encontrado" })
     }
 
-    // Buscar histórico de mudanças de status nos logs
+    // Buscar histórico de mudanças de status nos logs - filtrar por cliente_id para evitar problemas com nomes duplicados
     const logs = await dbQuery(`
       SELECT l.*, u.nome as usuario_logado_nome
       FROM logs_auditoria l
       LEFT JOIN usuarios u ON l.usuario_id = u.id
       WHERE l.modulo = 'Clientes'
         AND l.acao = 'EDITAR'
-        AND l.usuario_afetado = $1
+        AND (l.cliente_id = $1 OR l.usuario_afetado = $2)
         AND l.descricao LIKE '%Status do cliente%'
       ORDER BY l.criado_em ASC
-    `, [cliente.rows[0].nome])
+    `, [id, cliente.rows[0].nome])
 
     // Função para formatar data no timezone de São Paulo
     const formatarDataSaoPaulo = (dataString) => {
