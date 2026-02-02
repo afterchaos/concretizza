@@ -1,0 +1,54 @@
+📌 CORREÇÃO: Clientes Inativos não aparecem para alteração
+
+═══════════════════════════════════════════════════════════════
+
+PROBLEMA IDENTIFICADO:
+────────────────────
+No arquivo server.js, linha 866, havia um filtro que impedia corretores 
+de ver clientes inativos:
+
+    query += " WHERE (c.usuario_id = $1 OR c.atribuido_a = $2) AND c.ativo = TRUE"
+
+Este filtro filtrando corretores a VER APENAS clientes ativos (ativo = TRUE).
+
+IMPACTO:
+────────
+1. Corretores NÃO CONSEGUEM VER clientes com ativo = 0 (inativos/finalizados)
+2. Corretores NÃO CONSEGUEM EDITAR esses 30 clientes inativos
+3. Head-admins NÃO SÃO AFETADOS (eles não têm essa restrição no código anterior)
+
+SOLUÇÃO APLICADA:
+─────────────────
+Removido o filtro "AND c.ativo = TRUE" da linha 866 de server.js:
+
+ANTES:
+    if (isCorretor && !isAdmin) {
+        query += " WHERE (c.usuario_id = $1 OR c.atribuido_a = $2) AND c.ativo = TRUE"
+        params = [usuarioId, usuarioId]
+    }
+
+DEPOIS:
+    if (isCorretor && !isAdmin) {
+        query += " WHERE (c.usuario_id = $1 OR c.atribuido_a = $2)"
+        params = [usuarioId, usuarioId]
+    }
+
+RESULTADO ESPERADO:
+───────────────────
+✅ Corretores AGORA conseguem ver clientes inativos (ativo = 0) que criaram ou foram atribuídos
+✅ Corretores AGORA conseguem editar esses 30 clientes inativos
+✅ Head-admins continuam vendo TODOS os clientes (sem restrição)
+
+TESTES RECOMENDADOS:
+────────────────────
+1. Logar como corretor
+2. Verificar que clientes inativos agora aparecem na lista
+3. Tentar editar um cliente inativo
+4. Logar como head-admin
+5. Verificar que todos os clientes aparecem
+
+ARQUIVO ALTERADO:
+─────────────────
+- server.js: Linha 866 (removido filtro c.ativo = TRUE)
+
+═══════════════════════════════════════════════════════════════

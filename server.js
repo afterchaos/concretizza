@@ -859,11 +859,11 @@ app.get("/api/clientes", autenticar, autorizar("admin", "head-admin", "corretor"
   const isAdmin = cargos.includes("admin") || cargos.includes("head-admin")
   const usuarioId = req.usuario.id
 
-  let query = "SELECT c.id, c.nome, c.telefone, c.email, c.interesse, c.valor, c.status, c.observacoes, c.data, c.usuario_id, c.tags, c.data_atribuicao, c.ultimo_contato, c.primeiro_contato, u.nome as cadastrado_por, c.atribuido_a, ua.nome as atribuido_a_nome FROM clientes c LEFT JOIN usuarios u ON c.usuario_id = u.id LEFT JOIN usuarios ua ON c.atribuido_a = ua.id"
+  let query = "SELECT c.id, c.nome, c.telefone, c.email, c.interesse, c.valor, c.status, c.observacoes, c.data, c.usuario_id, c.tags, c.data_atribuicao, c.ultimo_contato, c.primeiro_contato, u.nome as cadastrado_por, c.atribuido_a, ua.nome as atribuido_a_nome, c.criado_em, c.atualizado_em FROM clientes c LEFT JOIN usuarios u ON c.usuario_id = u.id LEFT JOIN usuarios ua ON c.atribuido_a = ua.id"
   let params = []
 
   if (isCorretor && !isAdmin) {
-    query += " WHERE (c.usuario_id = $1 OR c.atribuido_a = $2) AND c.ativo = TRUE"
+    query += " WHERE (c.usuario_id = $1 OR c.atribuido_a = $2)"
     params = [usuarioId, usuarioId]
   }
 
