@@ -793,9 +793,15 @@ async function executarSalvamentoCliente(cliente) {
 
         // Atualizar cliente no array local para preservar filtros
       const clienteIndex = clientes.findIndex(c => c.id === clienteEmEdicao)
-      if (clienteIndex !== -1) {
-        // Manter campos que não são editáveis por corretores ou que vêm da API
+      if (clienteIndex !== -1 && clienteIndex >= 0 && clienteIndex < clientes.length) {
+        // GARANTIR QUE APENAS 1 CLIENTE É ATUALIZADO
+        // Validação extra: verificar que o ID corresponde exatamente
         const clienteExistente = clientes[clienteIndex]
+        if (clienteExistente.id !== clienteEmEdicao) {
+          console.error(`[CRÍTICO] Tentativa de atualizar cliente ${clienteEmEdicao}, mas encontrou cliente ${clienteExistente.id} no índice ${clienteIndex}`)
+          mostrarNotificacao("Erro crítico: cliente incorreto sendo atualizado. Por favor, recarregue a página.", "erro")
+          return
+        }
 
         // Verificar mudanças de status relacionadas à ativação/inativação
         const deveDesatribuir = cliente.status === "finalizado" && clienteExistente.status !== "finalizado"
@@ -822,9 +828,9 @@ async function executarSalvamentoCliente(cliente) {
             criado_em: clienteExistente.criado_em,
             atualizado_em: new Date().toISOString(),
             cadastrado_por: clienteExistente.cadastrado_por,
-            nome: clienteExistente.nome, // Preservar nome
-            telefone: clienteExistente.telefone, // Preservar telefone
-            email: clienteExistente.email, // Preservar email
+            nome: clienteExistente.nome, // Preservar nome - NUNCA ALTERAR
+            telefone: clienteExistente.telefone, // Preservar telefone - NUNCA ALTERAR
+            email: clienteExistente.email, // Preservar email - NUNCA ALTERAR
             tags: clienteExistente.tags, // Preservar tags
             // Se foi finalizado, remover atribuição; se foi reativado, atribuir ao corretor logado apenas se for corretor
             atribuido_a: deveDesatribuir ? null : (deveReativar && isCorretor ? usuarioLogado.id : clienteExistente.atribuido_a),
@@ -848,10 +854,15 @@ async function executarSalvamentoCliente(cliente) {
           }
         }
 
+        // VALIDAÇÃO CRÍTICA: Garantir que o ID nunca mude
+        clienteAtualizado.id = clienteEmEdicao
         clientes[clienteIndex] = clienteAtualizado
 
         // Reaplicar filtros atuais sem recarregar dados
         filtrarClientes()
+      } else {
+        console.error(`[CRÍTICO] Cliente com ID ${clienteEmEdicao} não encontrado no array de clientes. Índice retornado: ${clienteIndex}`)
+        mostrarNotificacao("Erro: Cliente não encontrado. Por favor, recarregue a página.", "erro")
       }
     } else {
       const resultado = await criarCliente(cliente)
@@ -1447,38 +1458,55 @@ async function salvarEdicaoEmMassa() {
     const atualizacoes = []
     for (const id of clientesSelecionados) {
       const cliente = clientes.find((c) => c.id === id)
-      if (cliente) {
-        const clienteAtualizado = {
-          ...cliente,
-          status: novoStatus
-        }
+      if (!cliente) {
+        console.error(`[CRÍTICO] Cliente com ID ${id} não encontrado no array clientes`)
+        continue
+      }
+      
+      // VALIDAÇÃO: Garantir que há apenas 1 cliente com este ID
+      const clientesComEsteId = clientes.filter(c => c.id === id)
+      if (clientesComEsteId.length > 1) {
+        console.error(`[CRÍTICO] Encontrados ${clientesComEsteId.length} clientes com ID ${id}. Pulando...`)
+        mostrarNotificacao(`Erro: Encontrados múltiplos clientes com ID ${id}. Por favor, recarregue a página.`, "erro")
+        continue
+      }
 
-        try {
-          await atualizarCliente(id, clienteAtualizado)
-          registrarLog("EDITAR", "CLIENTES", `Status do cliente "${cliente.nome}" alterado para "${formatarStatus(novoStatus)}" (em massa)`, cliente.nome)
+      const clienteAtualizado = {
+        ...cliente,
+        status: novoStatus
+      }
 
-          // Atualizar no array local
-          const clienteIndex = clientes.findIndex(c => c.id === id)
-          if (clienteIndex !== -1) {
-            const deveDesatribuir = novoStatus === "finalizado" && clientes[clienteIndex].status !== "finalizado"
-            const deveReativar = novoStatus !== "finalizado" && clientes[clienteIndex].status === "finalizado"
-            const usuarioLogado = obterUsuarioLogado()
-            const isCorretor = usuarioLogado && getCargosAsArray(usuarioLogado.cargo).some(c => c.toLowerCase().includes('corretor')) && !isAdminOrHeadAdmin()
-            clientes[clienteIndex] = {
-              ...clientes[clienteIndex],
-              status: novoStatus,
-              atualizado_em: new Date().toISOString(),
-              // Se foi finalizado, remover atribuição; se foi reativado, atribuir ao corretor logado apenas se for corretor
-              atribuido_a: deveDesatribuir ? null : (deveReativar && isCorretor ? usuarioLogado.id : clientes[clienteIndex].atribuido_a),
-              atribuido_a_nome: deveDesatribuir ? null : (deveReativar && isCorretor ? usuarioLogado.nome : clientes[clienteIndex].atribuido_a_nome),
-              data_atribuicao: deveDesatribuir ? null : (deveReativar && isCorretor ? new Date().toISOString().split("T")[0] : clientes[clienteIndex].data_atribuicao)
-            }
+      try {
+        await atualizarCliente(id, clienteAtualizado)
+        registrarLog("EDITAR", "CLIENTES", `Status do cliente "${cliente.nome}" alterado para "${formatarStatus(novoStatus)}" (em massa)`, cliente.nome)
+
+        // Atualizar no array local
+        const clienteIndex = clientes.findIndex(c => c.id === id)
+        if (clienteIndex !== -1) {
+          // VALIDAÇÃO EXTRA: Garantir que é o mesmo cliente que estamos atualizando
+          if (clientes[clienteIndex].id !== id) {
+            console.error(`[CRÍTICO] Cliente no índice ${clienteIndex} tem ID ${clientes[clienteIndex].id}, mas esperávamos ${id}`)
+            continue
           }
 
-          atualizacoes.push(cliente.nome)
-        } catch (error) {
-          console.error(`Erro ao atualizar cliente ${cliente.nome}:`, error)
+          const deveDesatribuir = novoStatus === "finalizado" && clientes[clienteIndex].status !== "finalizado"
+          const deveReativar = novoStatus !== "finalizado" && clientes[clienteIndex].status === "finalizado"
+          const usuarioLogado = obterUsuarioLogado()
+          const isCorretor = usuarioLogado && getCargosAsArray(usuarioLogado.cargo).some(c => c.toLowerCase().includes('corretor')) && !isAdminOrHeadAdmin()
+          clientes[clienteIndex] = {
+            ...clientes[clienteIndex],
+            status: novoStatus,
+            atualizado_em: new Date().toISOString(),
+            // Se foi finalizado, remover atribuição; se foi reativado, atribuir ao corretor logado apenas se for corretor
+            atribuido_a: deveDesatribuir ? null : (deveReativar && isCorretor ? usuarioLogado.id : clientes[clienteIndex].atribuido_a),
+            atribuido_a_nome: deveDesatribuir ? null : (deveReativar && isCorretor ? usuarioLogado.nome : clientes[clienteIndex].atribuido_a_nome),
+            data_atribuicao: deveDesatribuir ? null : (deveReativar && isCorretor ? new Date().toISOString().split("T")[0] : clientes[clienteIndex].data_atribuicao)
+          }
         }
+
+        atualizacoes.push(cliente.nome)
+      } catch (error) {
+        console.error(`Erro ao atualizar cliente ${cliente.nome}:`, error)
       }
     }
 

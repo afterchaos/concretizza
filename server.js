@@ -1014,7 +1014,12 @@ app.put(
             params.push(id)
 
             const result = await dbQuery(query, params)
-            if (result.rowCount === 0) return res.status(404).json({ error: "Cliente não encontrado" })
+            
+            // VALIDAÇÃO CRÍTICA: Garantir que apenas 1 cliente foi afetado
+            if (result.rowCount !== 1) {
+              console.error(`[${getDataSaoPaulo()}] [CRÍTICO] UPDATE afetou ${result.rowCount} clientes em vez de 1! ID: ${id}`)
+              return res.status(500).json({ error: `Erro crítico: tentativa de atualizar múltiplos clientes (${result.rowCount} linhas afetadas)` })
+            }
 
             await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Datas de contato atualizadas para cliente: ${nomeCliente}`, nomeCliente, req, id)
             return res.json({ success: true, message: "Cliente atualizado com sucesso" })
@@ -1097,7 +1102,12 @@ app.put(
         params.push(id)
 
         const result = await dbQuery(updateQuery, params)
-        if (result.rowCount === 0) return res.status(404).json({ error: "Cliente não encontrado" })
+        
+        // VALIDAÇÃO CRÍTICA: Garantir que apenas 1 cliente foi afetado
+        if (result.rowCount !== 1) {
+          console.error(`[${getDataSaoPaulo()}] [CRÍTICO] UPDATE afetou ${result.rowCount} clientes em vez de 1! ID: ${id}`)
+          return res.status(500).json({ error: `Erro crítico: tentativa de atualizar múltiplos clientes (${result.rowCount} linhas afetadas)` })
+        }
 
         // Log sempre que houver mudança de status (corretores)
         if (status !== undefined && status !== statusAtual) {
@@ -1183,7 +1193,12 @@ app.put(
       params.push(id)
 
       const result = await dbQuery(updateQuery, params)
-      if (result.rowCount === 0) return res.status(404).json({ error: "Cliente não encontrado" })
+      
+      // VALIDAÇÃO CRÍTICA: Garantir que apenas 1 cliente foi afetado
+      if (result.rowCount !== 1) {
+        console.error(`[${getDataSaoPaulo()}] [CRÍTICO] UPDATE afetou ${result.rowCount} clientes em vez de 1! ID: ${id}`)
+        return res.status(500).json({ error: `Erro crítico: tentativa de atualizar múltiplos clientes (${result.rowCount} linhas afetadas)` })
+      }
 
       const nomeFinal = nome || nomeCliente
 
